@@ -4,10 +4,11 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from app.auth import require_roles
 from app.deps import OrionDep, SessionDep
 from app.models_maintenance import MaintenanceLog, MaintenanceOperationType
 from app.schemas import to_urn
@@ -38,7 +39,11 @@ def _normalise_device_id_or_404(raw: str) -> UUID:
 # ---------- operation types ----------
 
 
-@router.get("/maintenance/operation-types", response_model=list[OperationTypeOut])
+@router.get(
+    "/maintenance/operation-types",
+    response_model=list[OperationTypeOut],
+    dependencies=[Depends(require_roles("viewer", "operator", "maintenance_manager"))],
+)
 async def list_operation_types(session: SessionDep) -> list[MaintenanceOperationType]:
     rows = await session.scalars(select(MaintenanceOperationType).order_by(MaintenanceOperationType.name))
     return list(rows)
@@ -48,6 +53,7 @@ async def list_operation_types(session: SessionDep) -> list[MaintenanceOperation
     "/maintenance/operation-types",
     response_model=OperationTypeOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles("maintenance_manager"))],
 )
 async def create_operation_type(
     payload: OperationTypeIn, session: SessionDep
@@ -71,7 +77,11 @@ async def create_operation_type(
     return row
 
 
-@router.patch("/maintenance/operation-types/{op_id}", response_model=OperationTypeOut)
+@router.patch(
+    "/maintenance/operation-types/{op_id}",
+    response_model=OperationTypeOut,
+    dependencies=[Depends(require_roles("maintenance_manager"))],
+)
 async def patch_operation_type(
     op_id: UUID, payload: OperationTypeUpdate, session: SessionDep
 ) -> MaintenanceOperationType:
@@ -99,6 +109,7 @@ async def patch_operation_type(
 @router.delete(
     "/maintenance/operation-types/{op_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_roles("maintenance_manager"))],
 )
 async def delete_operation_type(op_id: UUID, session: SessionDep) -> Response:
     row = await session.get(MaintenanceOperationType, op_id)
@@ -126,6 +137,7 @@ async def delete_operation_type(op_id: UUID, session: SessionDep) -> Response:
     "/devices/{device_id}/maintenance/log",
     response_model=MaintenanceLogOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles("operator", "maintenance_manager"))],
 )
 async def create_maintenance_log(
     device_id: str,
@@ -178,6 +190,7 @@ async def create_maintenance_log(
 @router.get(
     "/devices/{device_id}/maintenance/log",
     response_model=list[MaintenanceLogOut],
+    dependencies=[Depends(require_roles("viewer", "operator", "maintenance_manager"))],
 )
 async def list_maintenance_log(
     device_id: str,
@@ -208,7 +221,11 @@ async def list_maintenance_log(
     return list(rows)
 
 
-@router.patch("/maintenance/log/{log_id}", response_model=MaintenanceLogOut)
+@router.patch(
+    "/maintenance/log/{log_id}",
+    response_model=MaintenanceLogOut,
+    dependencies=[Depends(require_roles("operator", "maintenance_manager"))],
+)
 async def patch_maintenance_log(
     log_id: UUID, payload: MaintenanceLogUpdate, session: SessionDep
 ) -> MaintenanceLog:
@@ -243,7 +260,11 @@ async def patch_maintenance_log(
     return row
 
 
-@router.delete("/maintenance/log/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/maintenance/log/{log_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_roles("maintenance_manager"))],
+)
 async def delete_maintenance_log(log_id: UUID, session: SessionDep) -> Response:
     row = await session.get(MaintenanceLog, log_id)
     if row is None:

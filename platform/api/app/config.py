@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_database"
     cors_allow_origins: str = ""
 
+    # Keycloak / RBAC (ticket 0014). The issuer must match exactly the
+    # `iss` claim in tokens (use the browser-facing URL). The JWKS URL
+    # is fetched server-side, so it points at the in-network hostname.
+    keycloak_issuer: str = "http://localhost:8081/realms/iot-platform"
+    keycloak_jwks_url: str = (
+        "http://keycloak:8080/realms/iot-platform/protocol/openid-connect/certs"
+    )
+    keycloak_client_id: str = "iot-web"
+    auth_disabled: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

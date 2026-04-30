@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.auth import require_roles
 from app.deps import OrionDep, QuantumLeapDep
 from app.schemas import to_urn
 from app.schemas_telemetry import StateResponse, TelemetryEntry, TelemetryResponse
@@ -39,7 +40,11 @@ def _to_iso(dt: datetime | None) -> str | None:
     return dt.isoformat()
 
 
-@router.get("/{device_id}/telemetry", response_model=TelemetryResponse)
+@router.get(
+    "/{device_id}/telemetry",
+    response_model=TelemetryResponse,
+    dependencies=[Depends(require_roles("viewer", "operator", "maintenance_manager"))],
+)
 async def get_telemetry(
     device_id: str,
     orion: OrionDep,
@@ -102,7 +107,12 @@ async def get_telemetry(
     )
 
 
-@router.get("/{device_id}/state", response_model=StateResponse, response_model_exclude_none=True)
+@router.get(
+    "/{device_id}/state",
+    response_model=StateResponse,
+    response_model_exclude_none=True,
+    dependencies=[Depends(require_roles("viewer", "operator", "maintenance_manager"))],
+)
 async def get_state(device_id: str, orion: OrionDep) -> StateResponse:
     device_urn = _normalise_id_or_404(device_id)
     entity = await orion.get_entity(device_urn)

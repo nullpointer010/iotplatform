@@ -131,7 +131,7 @@ i18n via `next-intl` (`es` default, `en` available).
   override; rolls in the `OAUTH2_PROXY_OIDC_AUDIENCE_CLAIMS=azp`
   hot-fix discovered during 0013 smoke-testing.
 
-- [ ] **0014 backend-jwt-rbac** — *(spec, TODO)*
+- [x] **0014 backend-jwt-rbac** — *(done 2026-04-30)*
   FastAPI validates JWTs against Keycloak's JWKS, exposes a
   `require_roles(*roles)` dependency, applies RBAC per `backend.md` to
   every route shipped in 0003–0008. Tests for 401 / 403 / 200 on a

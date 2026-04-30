@@ -17,6 +17,10 @@ services:
       - FIWARE_SERVICE=${FIWARE_SERVICE:-iot}
       - FIWARE_SERVICEPATH=${FIWARE_SERVICEPATH:-/}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER:-http://localhost:8081/realms/iot-platform}
+      - KEYCLOAK_JWKS_URL=${KEYCLOAK_JWKS_URL:-http://keycloak:8080/realms/iot-platform/protocol/openid-connect/certs}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-iot-web}
+      - AUTH_DISABLED=${AUTH_DISABLED:-false}
     volumes:
       - ../api/app:/app/app
       - ../api/alembic:/app/alembic
@@ -29,5 +33,6 @@ services:
       - orion
       - quantumleap
       - postgres
+      - keycloak
     networks:
       - iot-net

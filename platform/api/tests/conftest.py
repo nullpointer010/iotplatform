@@ -12,12 +12,55 @@ import pytest
 API_BASE = os.environ.get("API_INTERNAL_URL", "http://iot-api:8000")
 ORION_BASE = os.environ.get("ORION_URL", "http://orion:1026")
 QL_BASE = os.environ.get("QUANTUMLEAP_URL", "http://quantumleap:8668")
+KEYCLOAK_BASE = os.environ.get("KEYCLOAK_INTERNAL_URL", "http://keycloak:8080")
+KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM", "iot-platform")
+KEYCLOAK_CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "iot-web")
+KEYCLOAK_CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "dev-iot-web-secret")
 FIWARE_SERVICE = os.environ.get("FIWARE_SERVICE", "iot")
 FIWARE_SERVICEPATH = os.environ.get("FIWARE_SERVICEPATH", "/")
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_database",
 )
+
+
+# Realm seed users and the password schema documented in
+# platform/config/keycloak/realm-iot.json (`change-me-<role>`).
+SEED_USERS: dict[str, str] = {
+    "viewer": "change-me-viewer",
+    "operator": "change-me-operator",
+    "manager": "change-me-manager",
+    "admin": "change-me-admin",
+}
+
+
+def _fetch_token(username: str, password: str) -> str:
+    url = f"{KEYCLOAK_BASE}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+    data = {
+        "grant_type": "password",
+        "client_id": KEYCLOAK_CLIENT_ID,
+        "client_secret": KEYCLOAK_CLIENT_SECRET,
+        "username": username,
+        "password": password,
+        "scope": "openid",
+    }
+    # Retry briefly: Keycloak may not be ready when the first test runs.
+    last_err: Exception | None = None
+    for _ in range(20):
+        try:
+            r = httpx.post(url, data=data, timeout=5.0)
+            if r.status_code == 200:
+                return r.json()["access_token"]
+            last_err = AssertionError(f"{r.status_code} {r.text}")
+        except httpx.HTTPError as exc:
+            last_err = exc
+        time.sleep(0.5)
+    raise RuntimeError(f"could not fetch token for {username}: {last_err}")
+
+
+@pytest.fixture(scope="session")
+def tokens() -> dict[str, str]:
+    return {role: _fetch_token(role, pw) for role, pw in SEED_USERS.items()}
 
 
 def _sync_pg_dsn() -> str:
@@ -32,8 +75,9 @@ _FIWARE_HEADERS = {
 
 
 @pytest.fixture(scope="session")
-def api() -> Iterator[httpx.Client]:
-    with httpx.Client(base_url=API_BASE, timeout=30.0) as c:
+def api(tokens: dict[str, str]) -> Iterator[httpx.Client]:
+    headers = {"Authorization": f"Bearer {tokens['admin']}"}
+    with httpx.Client(base_url=API_BASE, timeout=30.0, headers=headers) as c:
         yield c
 
 

@@ -3,10 +3,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -15,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { api, ApiError } from "@/lib/api";
+import { FieldLabel } from "@/components/forms/field-label";
+import { api } from "@/lib/api";
 import {
   CATEGORY,
   PROTOCOL,
@@ -23,15 +23,14 @@ import {
   deviceFormSchema,
   type DeviceFormValues,
 } from "@/lib/zod";
-import { toast } from "@/components/ui/use-toast";
+import { useMutateWithToast } from "@/lib/mutate";
 import type { Device, DeviceCreate, DeviceUpdate, Protocol } from "@/lib/types";
 
-type Mode =
-  | { mode: "create" }
-  | { mode: "edit"; device: Device };
+type Mode = { mode: "create" } | { mode: "edit"; device: Device };
 
 export function DeviceForm(props: Mode) {
   const router = useRouter();
+  const t = useTranslations();
   const initial: Partial<DeviceFormValues> =
     props.mode === "edit"
       ? toFormValues(props.device)
@@ -39,13 +38,27 @@ export function DeviceForm(props: Mode) {
 
   const form = useForm<DeviceFormValues>({
     resolver: zodResolver(deviceFormSchema),
+    mode: "onBlur",
     defaultValues: initial as DeviceFormValues,
   });
 
   const protocol = form.watch("supportedProtocol");
 
-  const mutation = useMutation({
-    mutationFn: async (values: DeviceFormValues) => {
+  const errs = form.formState.errors;
+  const ph = (key: string): string | undefined => safe(t, `device.placeholder.${key}`);
+  const inv = (name: keyof DeviceFormValues | "ownerCsv" | "ipAddressCsv" | "addressJson" | "mqttSecurityJson" | "plcCredentialsJson") =>
+    (errs as Record<string, unknown>)[name as string] ? { "aria-invalid": true as const } : {};
+
+  const fmt = (msg?: string): string | undefined => {
+    if (!msg) return undefined;
+    if (msg.startsWith("orionForbidden:")) {
+      return t("zod.orionForbidden", { char: msg.slice("orionForbidden:".length) });
+    }
+    return msg;
+  };
+
+  const mutation = useMutateWithToast<Device, DeviceFormValues>({
+    mutationFn: async (values) => {
       const body = toApiPayload(values);
       if (props.mode === "create") {
         return api.createDevice(body as DeviceCreate);
@@ -53,17 +66,16 @@ export function DeviceForm(props: Mode) {
       return api.updateDevice(props.device.id, body as DeviceUpdate);
     },
     onSuccess: (device) => {
-      toast({
-        title: props.mode === "create" ? "Device created" : "Device updated",
-      });
       router.push(`/devices/${encodeURIComponent(device.id)}`);
       router.refresh();
     },
-    onError: (err: unknown) => {
-      const message =
-        err instanceof ApiError ? err.message : (err as Error).message;
-      toast({ title: "Save failed", description: message, variant: "destructive" });
-    },
+  });
+
+  // Helper to render label + tooltip from i18n keys.
+  const f = (key: string, required = false) => ({
+    label: t(`device.field.${key}.label`),
+    tooltip: safe(t, `device.field.${key}.tooltip`),
+    required,
   });
 
   return (
@@ -71,228 +83,176 @@ export function DeviceForm(props: Mode) {
       className="space-y-6"
       onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
     >
-      <Section title="Identity">
-        <Field label="Name *" error={form.formState.errors.name?.message}>
-          <Input {...form.register("name")} />
-        </Field>
-        <Field label="Category *">
+      <Section title={t("device.section.identity.title")}>
+        <FormRow {...f("name", true)} htmlFor="name" error={fmt(form.formState.errors.name?.message)}>
+          <Input id="name" placeholder={ph("name")} {...inv("name")} {...form.register("name")} />
+        </FormRow>
+        <FormRow {...f("category", true)} htmlFor="category">
           <Select
             value={form.watch("category")}
             onValueChange={(v) => form.setValue("category", v as DeviceFormValues["category"])}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a category" />
-            </SelectTrigger>
+            <SelectTrigger id="category"><SelectValue /></SelectTrigger>
             <SelectContent>
               {CATEGORY.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
+                <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </Field>
-        <Field label="Supported protocol *">
+        </FormRow>
+        <FormRow {...f("supportedProtocol", true)} htmlFor="supportedProtocol">
           <Select
             value={form.watch("supportedProtocol")}
-            onValueChange={(v) =>
-              form.setValue("supportedProtocol", v as Protocol)
-            }
+            onValueChange={(v) => form.setValue("supportedProtocol", v as Protocol)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a protocol" />
-            </SelectTrigger>
+            <SelectTrigger id="supportedProtocol"><SelectValue /></SelectTrigger>
             <SelectContent>
               {PROTOCOL.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
+                <SelectItem key={p} value={p}>{p}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </Field>
-        <Field label="Device state">
+        </FormRow>
+        <FormRow {...f("deviceState")} htmlFor="deviceState">
           <Select
             value={form.watch("deviceState") ?? ""}
             onValueChange={(v) =>
               form.setValue("deviceState", (v || undefined) as DeviceFormValues["deviceState"])
             }
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Optional" />
-            </SelectTrigger>
+            <SelectTrigger id="deviceState"><SelectValue placeholder="—" /></SelectTrigger>
             <SelectContent>
               {STATE.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
+                <SelectItem key={s} value={s}>{s}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </Field>
-        <Field label="Controlled properties (comma-separated)">
+        </FormRow>
+        <FormRow {...f("controlledProperty")} htmlFor="controlledProperty">
           <Input
-            placeholder="temperature, humidity"
+            id="controlledProperty"
+            placeholder={ph("controlledProperty")}
             {...form.register("controlledProperty")}
           />
-        </Field>
+        </FormRow>
       </Section>
 
-      <Section title="Hardware">
-        <Field label="Serial number">
-          <Input {...form.register("serialNumber")} />
-        </Field>
-        <Field label="Serial number type">
-          <Input placeholder="MAC, IMEI…" {...form.register("serialNumberType")} />
-        </Field>
-        <Field label="Manufacturer">
-          <Input {...form.register("manufacturerName")} />
-        </Field>
-        <Field label="Model">
-          <Input {...form.register("modelName")} />
-        </Field>
-        <Field label="Firmware version">
-          <Input {...form.register("firmwareVersion")} />
-        </Field>
+      <Section title={t("device.section.hardware.title")}>
+        <FormRow {...f("serialNumber")} htmlFor="serialNumber" error={fmt(form.formState.errors.serialNumber?.message)}>
+          <Input id="serialNumber" placeholder={ph("serialNumber")} {...inv("serialNumber")} {...form.register("serialNumber")} />
+        </FormRow>
+        <FormRow {...f("serialNumberType")} htmlFor="serialNumberType">
+          <Input id="serialNumberType" placeholder={ph("serialNumberType")} {...form.register("serialNumberType")} />
+        </FormRow>
+        <FormRow {...f("manufacturerName")} htmlFor="manufacturerName" error={fmt(form.formState.errors.manufacturerName?.message)}>
+          <Input id="manufacturerName" placeholder={ph("manufacturerName")} {...inv("manufacturerName")} {...form.register("manufacturerName")} />
+        </FormRow>
+        <FormRow {...f("modelName")} htmlFor="modelName" error={fmt(form.formState.errors.modelName?.message)}>
+          <Input id="modelName" placeholder={ph("modelName")} {...inv("modelName")} {...form.register("modelName")} />
+        </FormRow>
+        <FormRow {...f("firmwareVersion")} htmlFor="firmwareVersion" error={fmt(form.formState.errors.firmwareVersion?.message)}>
+          <Input id="firmwareVersion" placeholder={ph("firmwareVersion")} {...inv("firmwareVersion")} {...form.register("firmwareVersion")} />
+        </FormRow>
       </Section>
 
-      <Section title="Location">
-        <Field label="Latitude (-90..90)" error={form.formState.errors.latitude?.message as string | undefined}>
-          <Input
-            type="number"
-            step="any"
-            placeholder="40.4168"
-            {...form.register("latitude")}
-          />
-        </Field>
-        <Field label="Longitude (-180..180)" error={form.formState.errors.longitude?.message as string | undefined}>
-          <Input
-            type="number"
-            step="any"
-            placeholder="-3.7038"
-            {...form.register("longitude")}
-          />
-        </Field>
-        <Field label="Site area / zone">
-          <Input
-            placeholder="Almacén Principal"
-            {...form.register("siteArea")}
-          />
-        </Field>
+      <Section title={t("device.section.location.title")}>
+        <FormRow {...f("latitude")} htmlFor="latitude" error={form.formState.errors.latitude?.message as string | undefined}>
+          <Input id="latitude" type="number" step="any" placeholder={ph("latitude")} {...inv("latitude")} {...form.register("latitude")} />
+        </FormRow>
+        <FormRow {...f("longitude")} htmlFor="longitude" error={form.formState.errors.longitude?.message as string | undefined}>
+          <Input id="longitude" type="number" step="any" placeholder={ph("longitude")} {...inv("longitude")} {...form.register("longitude")} />
+        </FormRow>
+        <FormRow {...f("siteArea")} htmlFor="siteArea" error={fmt(form.formState.errors.siteArea?.message)}>
+          <Input id="siteArea" placeholder={ph("siteArea")} {...inv("siteArea")} {...form.register("siteArea")} />
+        </FormRow>
       </Section>
 
-      <Section title="Administrative">
-        <Field label="Date installed">
-          <Input type="datetime-local" {...form.register("dateInstalled")} />
-        </Field>
-        <Field label="Owner(s) (comma-separated)">
-          <Input placeholder="Juan Pérez, María García" {...form.register("ownerCsv")} />
-        </Field>
-        <Field label="IP address(es) (comma-separated)">
-          <Input placeholder="192.168.1.10, 10.0.0.5" {...form.register("ipAddressCsv")} />
-        </Field>
-        <Field
-          label="Address (JSON)"
-          error={form.formState.errors.addressJson?.message}
-        >
+      <Section title={t("device.section.admin.title")}>
+        <FormRow {...f("dateInstalled")} htmlFor="dateInstalled">
+          <Input id="dateInstalled" type="datetime-local" {...form.register("dateInstalled")} />
+        </FormRow>
+        <FormRow {...f("owner")} htmlFor="ownerCsv" error={fmt((form.formState.errors.ownerCsv as { message?: string } | undefined)?.message)}>
+          <Input id="ownerCsv" placeholder={ph("ownerCsv")} {...inv("ownerCsv")} {...form.register("ownerCsv")} />
+        </FormRow>
+        <FormRow {...f("ipAddress")} htmlFor="ipAddressCsv">
+          <Input id="ipAddressCsv" placeholder={ph("ipAddressCsv")} {...form.register("ipAddressCsv")} />
+        </FormRow>
+        <FormRow {...f("address")} htmlFor="addressJson" error={form.formState.errors.addressJson?.message}>
           <Textarea
-            placeholder='{"street": "C/ Mayor 1", "city": "Madrid"}'
+            id="addressJson"
+            placeholder={ph("addressJson")}
+            {...inv("addressJson")}
             {...form.register("addressJson")}
           />
-        </Field>
+        </FormRow>
       </Section>
 
       {protocol === "mqtt" && (
-        <Section title="MQTT">
-          <Field label="mqttTopicRoot *" error={form.formState.errors.mqttTopicRoot?.message}>
-            <Input
-              placeholder="installation/areaA/temp/sensor1"
-              {...form.register("mqttTopicRoot")}
-            />
-          </Field>
-          <Field label="mqttClientId *" error={form.formState.errors.mqttClientId?.message}>
-            <Input {...form.register("mqttClientId")} />
-          </Field>
-          <Field label="mqttQos (0–2)" error={form.formState.errors.mqttQos?.message}>
-            <Input type="number" min={0} max={2} {...form.register("mqttQos")} />
-          </Field>
-          <Field label="dataTypes (JSON)">
-            <Textarea
-              placeholder='{"installation/areaA/temp": "float"}'
-              {...form.register("dataTypesJson")}
-            />
-          </Field>
-          <Field label="mqttSecurity (JSON)">
-            <Textarea
-              placeholder='{"type": "TLS"}'
-              {...form.register("mqttSecurityJson")}
-            />
-          </Field>
+        <Section title={t("device.section.mqtt.title")}>
+          <FormRow {...f("mqttTopicRoot", true)} htmlFor="mqttTopicRoot" error={form.formState.errors.mqttTopicRoot?.message}>
+            <Input id="mqttTopicRoot" placeholder={ph("mqttTopicRoot")} {...inv("mqttTopicRoot")} {...form.register("mqttTopicRoot")} />
+          </FormRow>
+          <FormRow {...f("mqttClientId", true)} htmlFor="mqttClientId" error={fmt(form.formState.errors.mqttClientId?.message)}>
+            <Input id="mqttClientId" placeholder={ph("mqttClientId")} {...inv("mqttClientId")} {...form.register("mqttClientId")} />
+          </FormRow>
+          <FormRow {...f("mqttQos")} htmlFor="mqttQos" error={form.formState.errors.mqttQos?.message}>
+            <Input id="mqttQos" type="number" min={0} max={2} {...inv("mqttQos")} {...form.register("mqttQos")} />
+          </FormRow>
+          <FormRow {...f("mqttSecurity")} htmlFor="mqttSecurityJson">
+            <Textarea id="mqttSecurityJson" placeholder={ph("mqttSecurityJson")} {...form.register("mqttSecurityJson")} />
+          </FormRow>
         </Section>
       )}
 
       {protocol === "plc" && (
-        <Section title="PLC">
-          <Field label="plcIpAddress *" error={form.formState.errors.plcIpAddress?.message}>
-            <Input placeholder="192.168.1.100" {...form.register("plcIpAddress")} />
-          </Field>
-          <Field label="plcPort *" error={form.formState.errors.plcPort?.message}>
-            <Input type="number" min={1} max={65535} {...form.register("plcPort")} />
-          </Field>
-          <Field label="plcConnectionMethod *">
-            <Input placeholder="Modbus TCP" {...form.register("plcConnectionMethod")} />
-          </Field>
-          <Field label="plcReadFrequency (seconds)">
-            <Input type="number" min={1} {...form.register("plcReadFrequency")} />
-          </Field>
-          <Field
-            label="plcTagsMapping (JSON) *"
-            error={form.formState.errors.plcTagsMapping?.message}
-          >
-            <Textarea
-              placeholder='{"DB1.DW10":"Temperatura"}'
-              {...form.register("plcTagsMapping")}
-            />
-          </Field>
-          <Field label="plcCredentials (JSON)">
-            <Textarea
-              placeholder='{"username":"admin","password":"…"}'
-              {...form.register("plcCredentialsJson")}
-            />
-          </Field>
+        <Section title={t("device.section.plc.title")}>
+          <FormRow {...f("plcIpAddress", true)} htmlFor="plcIpAddress" error={form.formState.errors.plcIpAddress?.message}>
+            <Input id="plcIpAddress" placeholder={ph("plcIpAddress")} {...inv("plcIpAddress")} {...form.register("plcIpAddress")} />
+          </FormRow>
+          <FormRow {...f("plcPort", true)} htmlFor="plcPort" error={form.formState.errors.plcPort?.message}>
+            <Input id="plcPort" type="number" min={1} max={65535} {...inv("plcPort")} {...form.register("plcPort")} />
+          </FormRow>
+          <FormRow {...f("plcConnectionMethod", true)} htmlFor="plcConnectionMethod">
+            <Input id="plcConnectionMethod" placeholder={ph("plcConnectionMethod")} {...form.register("plcConnectionMethod")} />
+          </FormRow>
+          <FormRow {...f("plcReadFrequency")} htmlFor="plcReadFrequency">
+            <Input id="plcReadFrequency" type="number" min={1} {...form.register("plcReadFrequency")} />
+          </FormRow>
+          <FormRow {...f("plcTagsMapping", true)} htmlFor="plcTagsMapping" error={form.formState.errors.plcTagsMapping?.message}>
+            <Textarea id="plcTagsMapping" placeholder={ph("plcTagsMapping")} {...inv("plcTagsMapping")} {...form.register("plcTagsMapping")} />
+          </FormRow>
+          <FormRow {...f("plcCredentials")} htmlFor="plcCredentialsJson">
+            <Textarea id="plcCredentialsJson" placeholder={ph("plcCredentialsJson")} {...form.register("plcCredentialsJson")} />
+          </FormRow>
         </Section>
       )}
 
       {protocol === "lorawan" && (
-        <Section title="LoRaWAN">
-          <Field label="loraAppEui * (16 hex)" error={form.formState.errors.loraAppEui?.message}>
-            <Input {...form.register("loraAppEui")} />
-          </Field>
-          <Field label="loraDevEui * (16 hex)" error={form.formState.errors.loraDevEui?.message}>
-            <Input {...form.register("loraDevEui")} />
-          </Field>
-          <Field label="loraAppKey * (32 hex)" error={form.formState.errors.loraAppKey?.message}>
-            <Input {...form.register("loraAppKey")} />
-          </Field>
-          <Field label="loraNetworkServer *">
-            <Input {...form.register("loraNetworkServer")} />
-          </Field>
-          <Field label="loraPayloadDecoder *">
-            <Input {...form.register("loraPayloadDecoder")} />
-          </Field>
+        <Section title={t("device.section.lora.title")}>
+          <FormRow {...f("loraDevEui", true)} htmlFor="loraDevEui" error={form.formState.errors.loraDevEui?.message}>
+            <Input id="loraDevEui" {...form.register("loraDevEui")} />
+          </FormRow>
+          <FormRow {...f("loraAppEui", true)} htmlFor="loraAppEui" error={form.formState.errors.loraAppEui?.message}>
+            <Input id="loraAppEui" {...form.register("loraAppEui")} />
+          </FormRow>
+          <FormRow {...f("loraAppKey", true)} htmlFor="loraAppKey" error={form.formState.errors.loraAppKey?.message}>
+            <Input id="loraAppKey" {...form.register("loraAppKey")} />
+          </FormRow>
+          <FormRow {...f("loraNetworkServer", true)} htmlFor="loraNetworkServer">
+            <Input id="loraNetworkServer" {...form.register("loraNetworkServer")} />
+          </FormRow>
+          <FormRow {...f("loraPayloadDecoder", true)} htmlFor="loraPayloadDecoder">
+            <Input id="loraPayloadDecoder" {...form.register("loraPayloadDecoder")} />
+          </FormRow>
         </Section>
       )}
 
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-        >
-          Cancel
+        <Button type="button" variant="outline" onClick={() => router.back()}>
+          {t("common.cancel")}
         </Button>
         <Button type="submit" loading={mutation.isPending}>
-          {props.mode === "create" ? "Create device" : "Save changes"}
+          {props.mode === "create" ? t("device.create") : t("common.save")}
         </Button>
       </div>
     </form>
@@ -308,22 +268,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({
+function FormRow({
+  htmlFor,
   label,
+  tooltip,
+  required,
   error,
   children,
 }: {
+  htmlFor: string;
   label: string;
+  tooltip?: string;
+  required?: boolean;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <FieldLabel htmlFor={htmlFor} label={label} tooltip={tooltip} required={required} />
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
+}
+
+/** Return undefined if a translation key is missing instead of throwing. */
+function safe(t: ReturnType<typeof useTranslations>, key: string): string | undefined {
+  try {
+    const v = t(key);
+    // next-intl returns the key path on miss in dev; treat missing key as undefined.
+    return v && v !== key ? v : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function toFormValues(d: Device): Partial<DeviceFormValues> {
@@ -357,9 +334,7 @@ function toFormValues(d: Device): Partial<DeviceFormValues> {
     plcConnectionMethod: d.plcConnectionMethod,
     plcReadFrequency: d.plcReadFrequency,
     plcTagsMapping: d.plcTagsMapping ? JSON.stringify(d.plcTagsMapping) : undefined,
-    plcCredentialsJson: d.plcCredentials
-      ? JSON.stringify(d.plcCredentials)
-      : undefined,
+    plcCredentialsJson: d.plcCredentials ? JSON.stringify(d.plcCredentials) : undefined,
     loraAppEui: d.loraAppEui,
     loraDevEui: d.loraDevEui,
     loraAppKey: d.loraAppKey,
@@ -373,16 +348,13 @@ function tryJson(text: string | undefined): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    return text; // let the server reject it
+    return text;
   }
 }
 
 function csvList(text: string | undefined): string[] | undefined {
   if (!text) return undefined;
-  const arr = text
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const arr = text.split(",").map((s) => s.trim()).filter(Boolean);
   return arr.length ? arr : undefined;
 }
 
@@ -404,7 +376,6 @@ function toApiPayload(values: DeviceFormValues): DeviceCreate | DeviceUpdate {
   set("owner", csvList(values.ownerCsv));
   set("ipAddress", csvList(values.ipAddressCsv));
   if (values.dateInstalled) {
-    // datetime-local has no timezone; treat as UTC for round-tripping.
     const v = values.dateInstalled.length === 16
       ? `${values.dateInstalled}:00Z`
       : values.dateInstalled;
@@ -426,18 +397,15 @@ function toApiPayload(values: DeviceFormValues): DeviceCreate | DeviceUpdate {
     set("mqttClientId", values.mqttClientId);
     set("mqttQos", values.mqttQos);
     if (values.dataTypesJson) out.dataTypes = tryJson(values.dataTypesJson);
-    if (values.mqttSecurityJson)
-      out.mqttSecurity = tryJson(values.mqttSecurityJson);
+    if (values.mqttSecurityJson) out.mqttSecurity = tryJson(values.mqttSecurityJson);
   }
   if (values.supportedProtocol === "plc") {
     set("plcIpAddress", values.plcIpAddress);
     set("plcPort", values.plcPort);
     set("plcConnectionMethod", values.plcConnectionMethod);
     set("plcReadFrequency", values.plcReadFrequency);
-    if (values.plcTagsMapping)
-      out.plcTagsMapping = tryJson(values.plcTagsMapping);
-    if (values.plcCredentialsJson)
-      out.plcCredentials = tryJson(values.plcCredentialsJson);
+    if (values.plcTagsMapping) out.plcTagsMapping = tryJson(values.plcTagsMapping);
+    if (values.plcCredentialsJson) out.plcCredentials = tryJson(values.plcCredentialsJson);
   }
   if (values.supportedProtocol === "lorawan") {
     set("loraAppEui", values.loraAppEui);

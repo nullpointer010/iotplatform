@@ -72,14 +72,78 @@ against the live `make up` stack.
   maintenance entries, telemetry pushed via Orion → QL) and a `make seed`
   target.
 
-- [ ] **0009 pdf-manual-upload** — *(optional, post-spec)*
-  Out of `backend.md` scope. Implement only if still wanted after 0003–0008
-  land.
+### Re-plan (2026-04-30)
 
-- [ ] **0010 keycloak-integration** — *(TODO, last)*
-  Keycloak service + JWT middleware + RBAC retrofitted onto every endpoint
-  from 0003–0008. Tests for unauthenticated (401), wrong-role (403),
-  authorized (200) on each route.
+After 0008 closed we re-planned the rest of Phase 1. Order is **visuals
+first, then auth, then optional extras** so the platform stays easy to
+demo while non-spec polish lands; spec closure (Keycloak per `backend.md`)
+happens before the optional tickets.
+
+Auth approach mirrors the CropDataSpace reference at
+`/home/maru/crop-edc/cropdataspace`: Keycloak + oauth2-proxy at the edge
+(no in-app login UI). Local dev only — no TLS, no Caddy hosts file
+gymnastics; oauth2-proxy and Keycloak both bound to `localhost`.
+i18n via `next-intl` (`es` default, `en` available).
+
+- [x] **0009 almeria-seed-context** — *(done 2026-04-30)*
+  Replaced the generic Spanish `SITES` list in
+  `platform/scripts/add_test_data.py` with 8 IFAPA La Cañada + UAL
+  Almería sites and IFAPA/UAL-tagged owners. Added a `_slug()` helper
+  for `mqttTopicRoot` so multi-word cities (`"La Cañada"`) become valid
+  MQTT segments (`la-canada`). Live `make seed`: 50/50 devices, 8
+  op-types, 150 maintenance entries, 1872 telemetry points.
+
+- [x] **0010 api-observability-fix** — *(done 2026-04-30)*
+  Stopped Alembic's `fileConfig` from disabling uvicorn loggers
+  (`disable_existing_loggers=False`). Added `RequestIdMiddleware` and a
+  global `Exception` handler that logs via `app.errors` and returns
+  `{detail, request_id}` with a matching `X-Request-ID` header.
+  `PYTHONUNBUFFERED=1` set on the API container. 4 in-process pytest
+  cases; 80/80 total green.
+
+- [ ] **0011 ux-polish-i18n** — *(TODO)*
+  Visual + interaction polish on top of the 0007/0008 skeleton: tighten
+  the layout (less wall-of-text, better hierarchy, more whitespace,
+  fewer columns by default with progressive disclosure), uniform toasts
+  on every mutation, optimistic delete on list views, reusable
+  empty-state CTA component, and `next-intl` integration with `es`
+  (default) and `en` message catalogs. No new pages, no bulk delete,
+  no new component library.
+
+- [ ] **0012 devices-external-map** — *(TODO)*
+  Leaflet + OSM tiles. Map view on devices list and on device detail
+  using existing `location.latitude/longitude`. Click-to-pick coordinates
+  in the device form. No API key, no paid tiles.
+
+- [ ] **0013 keycloak-and-edge-auth** — *(spec, TODO)*
+  Keycloak 24 service + dedicated `keycloak-db` (postgres 17), realm
+  `iot-platform` imported from `platform/config/keycloak/realm-iot.json`
+  with 4 realm roles (`viewer`, `operator`, `maintenance_manager`,
+  `admin`) and seed users for each. `oauth2-proxy` (keycloak-oidc) in
+  front of the Next.js app, public client `iot-web`. Local dev,
+  `localhost`-bound, no TLS. UI itself unchanged.
+
+- [ ] **0014 backend-jwt-rbac** — *(spec, TODO)*
+  FastAPI validates JWTs against Keycloak's JWKS, exposes a
+  `require_roles(*roles)` dependency, applies RBAC per `backend.md` to
+  every route shipped in 0003–0008. Tests for 401 / 403 / 200 on a
+  representative endpoint per resource. Closes the v1 spec.
+
+- [ ] **0015 web-role-aware-ui** — *(spec, TODO)*
+  Web reads user identity + roles forwarded by `oauth2-proxy`
+  (`X-Auth-Request-*` headers, surfaced via a small `/api/v1/me` echo if
+  needed). Hides/disables actions the user cannot perform; renders a
+  friendly 403 view for direct navigation.
+
+- [ ] **0016 device-manuals-pdf** — *(extras, TODO)*
+  Upload / list / view / delete PDF manuals attached to a device. Local
+  Docker volume + Postgres metadata table (no MinIO yet). In-browser
+  viewer.
+
+- [ ] **0017 internal-greenhouse-map** — *(extras, TODO)*
+  Per-`site_area` floor-plan image upload + drag-place devices (x,y in
+  % of image). AI-generated plan recorded as a future enhancement, not
+  a requirement.
 
 ## Phase 2+ — Later
 

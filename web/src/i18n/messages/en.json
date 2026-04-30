@@ -1,0 +1,192 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "deleting": "Deleting…",
+    "empty": "No data",
+    "back": "Back",
+    "search": "Search",
+    "all": "All",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "devices": "Devices",
+    "opTypes": "Operation types",
+    "language": "Language",
+    "spanish": "Español",
+    "english": "English",
+    "logout": "Sign out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "IoT platform overview",
+    "devicesCard": "Devices",
+    "devicesSubtitle": "{active} active · {maintenance} in maintenance",
+    "opTypesCard": "Operation types",
+    "opTypesSubtitle": "Defined maintenance operations",
+    "statusCard": "Status",
+    "statusUp": "API up",
+    "statusUpDesc": "Backend reachable",
+    "statusDown": "API down",
+    "statusDownDesc": "Cannot reach the backend",
+    "byProtocol": "By protocol",
+    "byProtocolEmpty": "No devices registered",
+    "quickActions": "Quick actions",
+    "registerDevice": "Register a device",
+    "manageOpTypes": "Manage operation types"
+  },
+  "device": {
+    "title": "Devices",
+    "subtitle": "Connected device inventory",
+    "new": "New device",
+    "edit": "Edit device",
+    "create": "Create device",
+    "emptyTitle": "No devices yet",
+    "emptyHint": "Create your first device to start collecting telemetry.",
+    "deleteConfirmTitle": "Delete device",
+    "deleteConfirmDesc": "This action cannot be undone. The device and its maintenance history will be removed.",
+    "tab": {
+      "overview": "Overview",
+      "telemetry": "Telemetry",
+      "maintenance": "Maintenance"
+    },
+    "section": {
+      "identity": { "title": "Identity" },
+      "hardware": { "title": "Hardware" },
+      "location": { "title": "Location" },
+      "admin": { "title": "Administrative" },
+      "mqtt": { "title": "MQTT" },
+      "plc": { "title": "PLC" },
+      "lora": { "title": "LoRaWAN" }
+    },
+    "field": {
+      "name":            { "label": "Name", "tooltip": "Short label to identify the device. e.g.: Temperature sensor A1." },
+      "category":        { "label": "Category", "tooltip": "Functional type. e.g.: sensor, gateway, plc." },
+      "supportedProtocol": { "label": "Protocol", "tooltip": "Primary communication protocol." },
+      "deviceState":     { "label": "State", "tooltip": "Operational state declared by the operator." },
+      "controlledProperty": { "label": "Controlled properties", "tooltip": "Variables it measures or controls. e.g.: temperature, humidity. Comma-separated." },
+      "manufacturerName":{ "label": "Manufacturer", "tooltip": "Manufacturer name. e.g.: Libelium, Bosch." },
+      "modelName":       { "label": "Model", "tooltip": "Commercial model name. e.g.: Plug and Sense Smart Agriculture." },
+      "serialNumber":    { "label": "Serial number", "tooltip": "Manufacturer-assigned identifier. e.g.: SN-0001-2024." },
+      "serialNumberType":{ "label": "Serial type", "tooltip": "Origin of the serial. e.g.: MAC, IMEI, Internal." },
+      "firmwareVersion": { "label": "Firmware", "tooltip": "Installed version. e.g.: 1.4.2." },
+      "owner":           { "label": "Owners", "tooltip": "People or entities in charge. Comma-separated. e.g.: IFAPA La Cañada, UAL." },
+      "ipAddress":       { "label": "IP addresses", "tooltip": "IPv4 addresses, comma-separated. e.g.: 192.168.1.10, 10.0.0.5." },
+      "dateInstalled":   { "label": "Date installed" },
+      "latitude":        { "label": "Latitude", "tooltip": "Decimal between -90 and 90. e.g.: 36.8341." },
+      "longitude":       { "label": "Longitude", "tooltip": "Decimal between -180 and 180. e.g.: -2.4021." },
+      "siteArea":        { "label": "Site area", "tooltip": "Free-text label for the location within the site. e.g.: Greenhouse A1." },
+      "address":         { "label": "Address (JSON)", "tooltip": "JSON object with keys: street, city, postalCode, country." },
+      "mqttTopicRoot":   { "label": "MQTT topic root", "tooltip": "No spaces, no + or # wildcards. e.g.: crop/almeria/dev001." },
+      "mqttClientId":    { "label": "MQTT client ID", "tooltip": "Unique client identifier on the broker. e.g.: ifapa-cnd-dev001." },
+      "mqttQos":         { "label": "QoS", "tooltip": "0, 1 or 2. 1 is the usual trade-off." },
+      "mqttSecurity":    { "label": "MQTT security (JSON)", "tooltip": "{ \"type\": \"TLS\" | \"none\", \"username\"?, \"password\"? }." },
+      "plcIpAddress":    { "label": "PLC IP", "tooltip": "IPv4 reachable from the gateway. e.g.: 192.168.1.100." },
+      "plcPort":         { "label": "Port", "tooltip": "1–65535. 502 (Modbus TCP), 4840 (OPC UA)." },
+      "plcConnectionMethod": { "label": "Method", "tooltip": "Modbus TCP, OPC UA, Siemens S7…" },
+      "plcReadFrequency":{ "label": "Read frequency (s)", "tooltip": "Read interval in seconds. e.g.: 30." },
+      "plcTagsMapping":  { "label": "Tags mapping (JSON)", "tooltip": "Object: { \"DB1.DW0\": \"alias\" }." },
+      "plcCredentials":  { "label": "Credentials (JSON)", "tooltip": "{ \"username\": \"…\", \"password\": \"…\" }." },
+      "loraDevEui":      { "label": "DevEUI", "tooltip": "16 hex characters." },
+      "loraAppEui":      { "label": "AppEUI", "tooltip": "16 hex characters." },
+      "loraAppKey":      { "label": "AppKey", "tooltip": "32 hex characters." },
+      "loraNetworkServer":{ "label": "Network Server", "tooltip": "LoRaWAN Network Server URL." },
+      "loraPayloadDecoder":{ "label": "Payload decoder", "tooltip": "Decoder name or reference." }
+    },
+    "placeholder": {
+      "name": "Temperature sensor A1",
+      "controlledProperty": "temperature, humidity",
+      "manufacturerName": "Libelium",
+      "modelName": "Plug and Sense Smart Agriculture",
+      "serialNumber": "SN-0001-2024",
+      "serialNumberType": "MAC, IMEI, Internal",
+      "firmwareVersion": "1.4.2",
+      "ownerCsv": "IFAPA La Cañada, UAL",
+      "ipAddressCsv": "192.168.1.10, 10.0.0.5",
+      "addressJson": "{\"street\":\"Carretera de Sacramento\",\"city\":\"Almería\",\"country\":\"ES\"}",
+      "latitude": "36.8341",
+      "longitude": "-2.4021",
+      "siteArea": "Greenhouse A1",
+      "mqttTopicRoot": "crop/almeria/dev001",
+      "mqttClientId": "ifapa-cnd-dev001",
+      "mqttSecurityJson": "{\"type\":\"TLS\"}",
+      "plcIpAddress": "192.168.1.100",
+      "plcConnectionMethod": "Modbus TCP",
+      "plcTagsMapping": "{\"DB1.DW10\":\"Temperature\"}",
+      "plcCredentialsJson": "{\"username\":\"admin\",\"password\":\"…\"}"
+    },
+    "list": {
+      "search": "Search devices…",
+      "filter": "Filter",
+      "clearFilters": "Clear filters",
+      "col": {
+        "name": "Name",
+        "category": "Category",
+        "protocol": "Protocol",
+        "state": "State",
+        "siteArea": "Site",
+        "owner": "Owner",
+        "actions": "Actions"
+      }
+    }
+  },
+  "opType": {
+    "title": "Operation types",
+    "subtitle": "Maintenance operation catalog",
+    "new": "New type",
+    "emptyTitle": "No operation types",
+    "emptyHint": "Create an operation type to start logging maintenance.",
+    "deleteConfirmTitle": "Delete operation type",
+    "deleteConfirmDesc": "This action cannot be undone.",
+    "field": {
+      "name": { "label": "Name", "tooltip": "Short, unique label. e.g.: Sensor calibration." },
+      "description": { "label": "Description" },
+      "requiresComponent": { "label": "Requires component", "tooltip": "Tick if the operation targets a specific component of the device." }
+    },
+    "placeholder": {
+      "name": "Sensor calibration"
+    }
+  },
+  "maintLog": {
+    "addTitle": "Log maintenance",
+    "emptyTitle": "No maintenance entries",
+    "emptyHint": "Log an operation when work is performed on this device.",
+    "deleteConfirmTitle": "Delete entry",
+    "deleteConfirmDesc": "This action cannot be undone.",
+    "field": {
+      "operationType": { "label": "Operation type" },
+      "startTime": { "label": "Start" },
+      "endTime": { "label": "End", "tooltip": "Must be at or after the start time." },
+      "componentPath": { "label": "Component", "tooltip": "Free component path. e.g.: sensor.temperature." },
+      "performedBy": { "label": "Performed by", "tooltip": "Operator UUID. Optional." },
+      "detailsNotes": { "label": "Notes" }
+    },
+    "placeholder": {
+      "componentPath": "sensor.temperature",
+      "performedBy": "550e8400-e29b-41d4-a716-446655440000",
+      "detailsNotes": "Battery replacement and visual inspection"
+    }
+  },
+  "telemetry": {
+    "emptyTitle": "No data",
+    "emptyHint": "No measurements have been received for this device in the selected range."
+  },
+  "zod": {
+    "required": "Required field",
+    "orionForbidden": "Character not allowed «{char}». Use only letters, numbers and - _ . , : / @"
+  },
+  "toast": {
+    "saved": "Changes saved",
+    "saveFailed": "Could not save",
+    "deleted": "Item deleted",
+    "deleteFailed": "Could not delete",
+    "created": "Created"
+  }
+}

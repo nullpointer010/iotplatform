@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Logo } from "./logo";
 import { UserMenu } from "./user-menu";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/", label: "Dashboard" },
-  { href: "/devices", label: "Devices" },
-  { href: "/maintenance/operation-types", label: "Operation Types" },
-];
-
 export function TopNav() {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+  const NAV = [
+    { href: "/", label: t("dashboard") },
+    { href: "/devices", label: t("devices") },
+    { href: "/maintenance/operation-types", label: t("opTypes") },
+  ];
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">

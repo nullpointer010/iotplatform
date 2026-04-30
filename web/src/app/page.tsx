@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Activity, Cpu, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 
 export default function DashboardPage() {
+  const t = useTranslations();
   const devices = useQuery({
     queryKey: ["devices"],
     queryFn: () => api.listDevices(1000, 0),
@@ -16,66 +18,104 @@ export default function DashboardPage() {
     queryFn: () => api.listOperationTypes(),
   });
 
-  const total = devices.data?.length ?? 0;
-  const active = devices.data?.filter((d) => d.deviceState === "active").length ?? 0;
-  const maintenance =
-    devices.data?.filter((d) => d.deviceState === "maintenance").length ?? 0;
+  const list = devices.data ?? [];
+  const total = list.length;
+  const active = list.filter((d) => d.deviceState === "active").length;
+  const maintenance = list.filter((d) => d.deviceState === "maintenance").length;
+  const protocolCounts = list.reduce<Record<string, number>>((acc, d) => {
+    const k = d.supportedProtocol ?? "—";
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+  const protocolEntries = Object.entries(protocolCounts).sort((a, b) => b[1] - a[1]);
+  const apiDown = devices.isError;
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Overview of devices and platform configuration.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("dashboard.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
-          title="Devices"
+          title={t("dashboard.devicesCard")}
           value={devices.isLoading ? "…" : String(total)}
-          subtitle={`${active} active · ${maintenance} in maintenance`}
+          subtitle={t("dashboard.devicesSubtitle", { active, maintenance })}
           icon={<Cpu className="h-5 w-5" />}
           href="/devices"
         />
         <StatCard
-          title="Operation types"
+          title={t("dashboard.opTypesCard")}
           value={opTypes.isLoading ? "…" : String(opTypes.data?.length ?? 0)}
-          subtitle="Defined maintenance operations"
+          subtitle={t("dashboard.opTypesSubtitle")}
           icon={<Wrench className="h-5 w-5" />}
           href="/maintenance/operation-types"
         />
         <StatCard
-          title="Status"
-          value={devices.isError ? "API down" : "API up"}
-          subtitle={
-            devices.isError
-              ? "Cannot reach FastAPI backend"
-              : "Backend reachable"
-          }
-          icon={<Activity className="h-5 w-5" />}
+          title={t("dashboard.statusCard")}
+          value={apiDown ? t("dashboard.statusDown") : t("dashboard.statusUp")}
+          subtitle={apiDown ? t("dashboard.statusDownDesc") : t("dashboard.statusUpDesc")}
+          icon={<Activity className={`h-5 w-5 ${apiDown ? "text-destructive" : ""}`} />}
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick actions</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Link
-            href="/devices/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Register a device
-          </Link>
-          <Link
-            href="/maintenance/operation-types"
-            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            Manage operation types
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {t("dashboard.byProtocol")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {protocolEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("dashboard.byProtocolEmpty")}
+              </p>
+            ) : (
+              <ul className="divide-y text-sm">
+                {protocolEntries.map(([proto, n]) => (
+                  <li
+                    key={proto}
+                    className="flex items-center justify-between py-2 first:pt-0 last:pb-0"
+                  >
+                    <span className="font-medium">{proto}</span>
+                    <span className="text-muted-foreground tabular-nums">{n}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {t("dashboard.quickActions")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Link
+              href="/devices/new"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              {t("dashboard.registerDevice")}
+            </Link>
+            <Link
+              href="/maintenance/operation-types"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              {t("dashboard.manageOpTypes")}
+            </Link>
+            <Link
+              href="/devices"
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              {t("nav.devices")}
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

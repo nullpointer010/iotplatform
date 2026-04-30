@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { findForbiddenChar } from "./orion-chars";
 
 const CATEGORY = [
   "sensor",
@@ -24,8 +25,38 @@ const PROTOCOL = [
 
 const STATE = ["active", "inactive", "maintenance"] as const;
 
-const optionalNonEmpty = (s: z.ZodString) =>
+/** Reject Orion NGSI v2 forbidden characters: < > " ' = ; ( ). */
+export const orionSafe = (s: z.ZodString) =>
+  s.superRefine((val, ctx) => {
+    const ch = findForbiddenChar(val);
+    if (ch) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `orionForbidden:${ch}`,
+      });
+    }
+  });
+
+/** Same check applied to each comma-separated item. */
+const orionSafeCsv = (s: z.ZodString) =>
+  s.superRefine((val, ctx) => {
+    for (const item of val.split(",").map((x) => x.trim()).filter(Boolean)) {
+      const ch = findForbiddenChar(item);
+      if (ch) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `orionForbidden:${ch}`,
+        });
+        return;
+      }
+    }
+  });
+
+const optionalNonEmpty = <T extends z.ZodTypeAny>(s: T) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), s.optional());
+
+const optionalNonEmptyOrionSafe = () =>
+  optionalNonEmpty(orionSafe(z.string()));
 
 const numericOptional = (s: z.ZodNumber) =>
   z.preprocess(
@@ -35,28 +66,31 @@ const numericOptional = (s: z.ZodNumber) =>
 
 export const deviceFormSchema = z
   .object({
-    name: z.string().min(1, "Name is required"),
+    name: orionSafe(z.string().min(1, "Name is required")),
     category: z.enum(CATEGORY),
     supportedProtocol: z.enum(PROTOCOL),
-    serialNumber: optionalNonEmpty(z.string()),
+    serialNumber: optionalNonEmptyOrionSafe(),
     serialNumberType: optionalNonEmpty(z.string()),
-    manufacturerName: optionalNonEmpty(z.string()),
-    modelName: optionalNonEmpty(z.string()),
-    firmwareVersion: optionalNonEmpty(z.string()),
+    manufacturerName: optionalNonEmptyOrionSafe(),
+    modelName: optionalNonEmptyOrionSafe(),
+    firmwareVersion: optionalNonEmptyOrionSafe(),
     deviceState: z.enum(STATE).optional().or(z.literal("").transform(() => undefined)),
     controlledProperty: optionalNonEmpty(z.string()),
     // Location
     latitude: numericOptional(z.number().min(-90).max(90)),
     longitude: numericOptional(z.number().min(-180).max(180)),
-    siteArea: optionalNonEmpty(z.string()),
+    siteArea: optionalNonEmptyOrionSafe(),
     // Administrative
     dateInstalled: optionalNonEmpty(z.string()),
-    ownerCsv: optionalNonEmpty(z.string()),
+    ownerCsv: z.preprocess(
+      (v) => (v === "" || v === undefined ? undefined : v),
+      orionSafeCsv(z.string()).optional(),
+    ),
     ipAddressCsv: optionalNonEmpty(z.string()),
     addressJson: optionalNonEmpty(z.string()),
     // MQTT
     mqttTopicRoot: optionalNonEmpty(z.string()),
-    mqttClientId: optionalNonEmpty(z.string()),
+    mqttClientId: optionalNonEmptyOrionSafe(),
     mqttQos: numericOptional(z.number().int().min(0).max(2)),
     dataTypesJson: optionalNonEmpty(z.string()),
     mqttSecurityJson: optionalNonEmpty(z.string()),
@@ -87,7 +121,7 @@ export const deviceFormSchema = z
 export type DeviceFormValues = z.infer<typeof deviceFormSchema>;
 
 export const operationTypeFormSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: orionSafe(z.string().min(1).max(100)),
   description: z.string().optional().or(z.literal("").transform(() => undefined)),
   requires_component: z.boolean().default(false),
 });

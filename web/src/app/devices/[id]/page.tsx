@@ -7,6 +7,7 @@ import { ChevronLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Gate } from "@/components/gate";
 import { api } from "@/lib/api";
 import { OverviewTab } from "./overview-tab";
 import { TelemetryTab } from "./telemetry-tab";
@@ -53,11 +54,13 @@ export default function DeviceDetailPage() {
           </h1>
           <p className="text-xs text-muted-foreground">{device.data.id}</p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/devices/${encodeURIComponent(device.data.id)}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" /> Edit
-          </Link>
-        </Button>
+        <Gate roles={["operator"]}>
+          <Button asChild variant="outline">
+            <Link href={`/devices/${encodeURIComponent(device.data.id)}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Link>
+          </Button>
+        </Gate>
       </div>
 
       <Tabs defaultValue="overview">

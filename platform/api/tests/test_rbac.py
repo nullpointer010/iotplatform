@@ -168,3 +168,29 @@ def test_log_delete_returns_404_for_manager(tokens):
 def test_health_is_public():
     with _client() as c:
         assert c.get("/healthz").status_code == 200
+
+
+# ---------- /me echoes identity for any authenticated user ----------
+
+
+@pytest.mark.parametrize(
+    "user,expected_role",
+    [
+        ("viewer", "viewer"),
+        ("operator", "operator"),
+        ("manager", "maintenance_manager"),
+        ("admin", "admin"),
+    ],
+)
+def test_me_returns_username_and_roles(tokens, user, expected_role):
+    with _client(tokens[user]) as c:
+        r = c.get(f"{PREFIX}/me")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["username"] == user
+    assert expected_role in body["roles"]
+
+
+def test_me_requires_auth():
+    with _client() as c:
+        assert c.get(f"{PREFIX}/me").status_code == 401

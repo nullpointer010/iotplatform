@@ -40,6 +40,12 @@ async function request<T>(
   const text = await res.text();
   const data = text ? safeJson(text) : undefined;
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      const rd = encodeURIComponent(
+        window.location.pathname + window.location.search,
+      );
+      window.location.href = `/oauth2/sign_in?rd=${rd}`;
+    }
     const message =
       (data && typeof data === "object" && "detail" in data
         ? formatDetail((data as { detail: unknown }).detail)
@@ -75,6 +81,7 @@ function formatDetail(detail: unknown): string {
 
 // ----- devices -----
 export const api = {
+  me: () => request<{ username: string; sub: string; roles: string[] }>(`/me`),
   listDevices: (limit = 100, offset = 0) =>
     request<Device[]>(`/devices?limit=${limit}&offset=${offset}`),
   getDevice: (id: string) => request<Device>(`/devices/${encodeURIComponent(id)}`),

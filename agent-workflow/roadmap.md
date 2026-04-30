@@ -137,11 +137,12 @@ i18n via `next-intl` (`es` default, `en` available).
   every route shipped in 0003–0008. Tests for 401 / 403 / 200 on a
   representative endpoint per resource. Closes the v1 spec.
 
-- [ ] **0015 web-role-aware-ui** — *(spec, TODO)*
-  Web reads user identity + roles forwarded by `oauth2-proxy`
-  (`X-Auth-Request-*` headers, surfaced via a small `/api/v1/me` echo if
-  needed). Hides/disables actions the user cannot perform; renders a
-  friendly 403 view for direct navigation.
+- [x] **0015 web-role-aware-ui** — *(done 2026-04-30)*
+  Web reads user identity + roles via a `/api/v1/me` echo. Hides
+  actions the user cannot perform (defence-in-depth `assertRole` for
+  destructive paths). Role-restricted pages redirect to `/devices`.
+  401 from the API triggers a re-login; 403 raises a Spanish toast.
+  User menu shows username + role badge.
 
 - [ ] **0016 device-manuals-pdf** — *(extras, TODO)*
   Upload / list / view / delete PDF manuals attached to a device. Local

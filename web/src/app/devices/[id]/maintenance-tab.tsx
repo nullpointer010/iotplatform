@@ -16,6 +16,7 @@ import {
 import { DeleteConfirm } from "@/components/delete-confirm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MaintenanceLogForm } from "@/components/forms/maintenance-log-form";
+import { Gate } from "@/components/gate";
 import { api } from "@/lib/api";
 import { useMutateWithToast } from "@/lib/mutate";
 import { optimisticListDelete } from "@/lib/optimistic";
@@ -59,14 +60,16 @@ export function MaintenanceTab({ deviceId }: { deviceId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("maintLog.addTitle")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MaintenanceLogForm deviceId={deviceId} />
-        </CardContent>
-      </Card>
+      <Gate roles={["operator", "maintenance_manager"]}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("maintLog.addTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MaintenanceLogForm deviceId={deviceId} />
+          </CardContent>
+        </Card>
+      </Gate>
 
       {isEmpty ? (
         <EmptyState
@@ -106,16 +109,18 @@ export function MaintenanceTab({ deviceId }: { deviceId: string }) {
                     {entry.details_notes ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <DeleteConfirm
-                      title={t("maintLog.deleteConfirmTitle")}
-                      description={t("maintLog.deleteConfirmDesc")}
-                      onConfirm={() => del.mutateAsync(entry.id)}
-                      trigger={
-                        <Button variant="ghost" size="icon" aria-label={t("common.delete")}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      }
-                    />
+                    <Gate roles={["maintenance_manager"]}>
+                      <DeleteConfirm
+                        title={t("maintLog.deleteConfirmTitle")}
+                        description={t("maintLog.deleteConfirmDesc")}
+                        onConfirm={() => del.mutateAsync(entry.id)}
+                        trigger={
+                          <Button variant="ghost" size="icon" aria-label={t("common.delete")}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        }
+                      />
+                    </Gate>
                   </TableCell>
                 </TableRow>
               ))}

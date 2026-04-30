@@ -27,6 +27,7 @@ import {
 import { DeleteConfirm } from "@/components/delete-confirm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DeviceMap } from "@/components/map/device-map.client";
+import { Gate } from "@/components/gate";
 import { api } from "@/lib/api";
 import { useMutateWithToast } from "@/lib/mutate";
 import { optimisticListDelete } from "@/lib/optimistic";
@@ -138,11 +139,13 @@ export default function DevicesPage() {
               {t("map.view.map")}
             </button>
           </div>
-          <Button asChild>
-            <Link href="/devices/new">
-              <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
-            </Link>
-          </Button>
+          <Gate roles={["operator"]}>
+            <Button asChild>
+              <Link href="/devices/new">
+                <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
+              </Link>
+            </Button>
+          </Gate>
         </div>
       </div>
 
@@ -151,11 +154,13 @@ export default function DevicesPage() {
           title={t("device.emptyTitle")}
           description={t("device.emptyHint")}
           action={
-            <Button asChild>
-              <Link href="/devices/new">
-                <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
-              </Link>
-            </Button>
+            <Gate roles={["operator"]}>
+              <Button asChild>
+                <Link href="/devices/new">
+                  <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
+                </Link>
+              </Button>
+            </Gate>
           }
         />
       ) : (
@@ -311,21 +316,25 @@ export default function DevicesPage() {
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button asChild variant="ghost" size="icon" aria-label={t("common.edit")}>
-                          <Link href={`/devices/${encodeURIComponent(d.id)}/edit`}>
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <DeleteConfirm
-                          title={t("device.deleteConfirmTitle")}
-                          description={t("device.deleteConfirmDesc")}
-                          onConfirm={() => del.mutateAsync(d.id)}
-                          trigger={
-                            <Button variant="ghost" size="icon" aria-label={t("common.delete")}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          }
-                        />
+                        <Gate roles={["operator"]}>
+                          <Button asChild variant="ghost" size="icon" aria-label={t("common.edit")}>
+                            <Link href={`/devices/${encodeURIComponent(d.id)}/edit`}>
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </Gate>
+                        <Gate roles={[]}>
+                          <DeleteConfirm
+                            title={t("device.deleteConfirmTitle")}
+                            description={t("device.deleteConfirmDesc")}
+                            onConfirm={() => del.mutateAsync(d.id)}
+                            trigger={
+                              <Button variant="ghost" size="icon" aria-label={t("common.delete")}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            }
+                          />
+                        </Gate>
                       </div>
                     </TableCell>
                   </TableRow>

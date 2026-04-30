@@ -197,6 +197,7 @@
     "saveFailed": "No se pudo guardar",
     "deleted": "Elemento eliminado",
     "deleteFailed": "No se pudo eliminar",
-    "created": "Creado correctamente"
+    "created": "Creado correctamente",
+    "forbidden": "No tiene permisos para esta acción"
   }
 }

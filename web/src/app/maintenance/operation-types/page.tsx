@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -26,6 +27,7 @@ import { DeleteConfirm } from "@/components/delete-confirm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OperationTypeForm } from "@/components/forms/operation-type-form";
 import { api } from "@/lib/api";
+import { useMe, useHasRole } from "@/lib/auth";
 import { useMutateWithToast } from "@/lib/mutate";
 import { optimisticListDelete } from "@/lib/optimistic";
 import type { OperationType } from "@/lib/types";
@@ -33,8 +35,17 @@ import type { OperationType } from "@/lib/types";
 export default function OperationTypesPage() {
   const qc = useQueryClient();
   const t = useTranslations();
+  const router = useRouter();
+  const me = useMe();
+  const allowed = useHasRole("maintenance_manager");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<OperationType | null>(null);
+
+  React.useEffect(() => {
+    if (me.isSuccess && !allowed) {
+      router.replace("/devices");
+    }
+  }, [me.isSuccess, allowed, router]);
 
   const list = useQuery({
     queryKey: ["operation-types"],
@@ -61,6 +72,8 @@ export default function OperationTypesPage() {
   });
 
   const isEmpty = !list.isLoading && (list.data?.length ?? 0) === 0;
+
+  if (!allowed) return null;
 
   return (
     <div className="space-y-6">

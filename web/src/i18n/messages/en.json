@@ -197,6 +197,7 @@
     "saveFailed": "Could not save",
     "deleted": "Item deleted",
     "deleteFailed": "Could not delete",
-    "created": "Created"
+    "created": "Created",
+    "forbidden": "You don't have permission for this action"
   }
 }

@@ -16,7 +16,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/use-toast";
+import { RoleBadge } from "@/components/role-badge";
+import { useMe } from "@/lib/auth";
 
 const LOCALE_LABEL: Record<string, string> = { es: "Español", en: "English" };
 
@@ -24,6 +25,7 @@ export function UserMenu() {
   const t = useTranslations("nav");
   const router = useRouter();
   const locale = useLocale();
+  const me = useMe();
 
   const setLocale = (next: string) => {
     document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=31536000; samesite=lax`;
@@ -44,11 +46,9 @@ export function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
-          <div className="flex flex-col">
-            <span>Operator</span>
-            <span className="text-xs font-normal text-muted-foreground">
-              Anonymous (no auth yet)
-            </span>
+          <div className="flex flex-col gap-1">
+            <span>{me.data?.username ?? "…"}</span>
+            {me.data ? <RoleBadge roles={me.data.roles} /> : null}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

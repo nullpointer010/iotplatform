@@ -36,8 +36,9 @@ export function useMutateWithToast<T, V>(opts: MutateWithToastOptions<T, V>) {
       onSuccess?.(data, vars);
     },
     onError: (err, vars) => {
+      const isForbidden = err instanceof ApiError && err.status === 403;
       toast({
-        title: t(errorKey),
+        title: t(isForbidden ? "toast.forbidden" : errorKey),
         description: err instanceof ApiError ? err.message : String(err),
         variant: "destructive",
       });

@@ -6,14 +6,18 @@ import { useTranslations } from "next-intl";
 import { Logo } from "./logo";
 import { UserMenu } from "./user-menu";
 import { cn } from "@/lib/utils";
+import { useHasRole } from "@/lib/auth";
 
 export function TopNav() {
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const isManager = useHasRole("maintenance_manager");
   const NAV = [
     { href: "/", label: t("dashboard") },
     { href: "/devices", label: t("devices") },
-    { href: "/maintenance/operation-types", label: t("opTypes") },
+    ...(isManager
+      ? [{ href: "/maintenance/operation-types", label: t("opTypes") }]
+      : []),
   ];
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

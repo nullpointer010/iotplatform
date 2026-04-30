@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterator
 
 import httpx
@@ -9,10 +10,11 @@ import pytest
 
 API_BASE = os.environ.get("API_INTERNAL_URL", "http://iot-api:8000")
 ORION_BASE = os.environ.get("ORION_URL", "http://orion:1026")
+QL_BASE = os.environ.get("QUANTUMLEAP_URL", "http://quantumleap:8668")
 FIWARE_SERVICE = os.environ.get("FIWARE_SERVICE", "iot")
 FIWARE_SERVICEPATH = os.environ.get("FIWARE_SERVICEPATH", "/")
 
-_ORION_HEADERS = {
+_FIWARE_HEADERS = {
     "Fiware-Service": FIWARE_SERVICE,
     "Fiware-ServicePath": FIWARE_SERVICEPATH,
 }
@@ -20,19 +22,28 @@ _ORION_HEADERS = {
 
 @pytest.fixture(scope="session")
 def api() -> Iterator[httpx.Client]:
-    with httpx.Client(base_url=API_BASE, timeout=10.0) as c:
+    with httpx.Client(base_url=API_BASE, timeout=30.0) as c:
         yield c
 
 
 @pytest.fixture(scope="session")
 def orion() -> Iterator[httpx.Client]:
-    with httpx.Client(base_url=ORION_BASE, timeout=10.0, headers=_ORION_HEADERS) as c:
+    with httpx.Client(base_url=ORION_BASE, timeout=10.0, headers=_FIWARE_HEADERS) as c:
+        yield c
+
+
+@pytest.fixture(scope="session")
+def ql() -> Iterator[httpx.Client]:
+    with httpx.Client(base_url=QL_BASE, timeout=10.0, headers=_FIWARE_HEADERS) as c:
         yield c
 
 
 @pytest.fixture
 def created_ids(orion: httpx.Client) -> Iterator[list[str]]:
-    """Tests append entity ids here; teardown deletes via Orion."""
+    """Tests append entity ids here; teardown deletes via Orion.
+
+    Works for both Device and DeviceMeasurement entity ids.
+    """
     ids: list[str] = []
     yield ids
     for eid in ids:
@@ -40,3 +51,70 @@ def created_ids(orion: httpx.Client) -> Iterator[list[str]]:
             orion.delete(f"/v2/entities/{eid}")
         except httpx.HTTPError:
             pass
+
+
+def push_measurement(
+    orion: httpx.Client,
+    *,
+    device_uuid: str,
+    controlled_property: str,
+    num_value: float,
+    date_observed: str,
+    unit_code: str | None = None,
+) -> str:
+    """Create or update a DeviceMeasurement entity in Orion.
+
+    Returns the measurement entity URN. Caller is responsible for cleanup
+    (typically by appending the URN to ``created_ids``).
+    """
+    suffix = controlled_property[:1].upper() + controlled_property[1:]
+    entity_id = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:{suffix}"
+    attrs: dict = {
+        "refDevice": {"type": "Text", "value": f"urn:ngsi-ld:Device:{device_uuid}"},
+        "controlledProperty": {"type": "Text", "value": controlled_property},
+        "numValue": {"type": "Number", "value": num_value},
+        "dateObserved": {"type": "DateTime", "value": date_observed},
+    }
+    if unit_code is not None:
+        attrs["unitCode"] = {"type": "Text", "value": unit_code}
+
+    # Try create first; if it exists, fall through to update.
+    create = orion.post(
+        "/v2/entities",
+        json={"id": entity_id, "type": "DeviceMeasurement", **attrs},
+    )
+    if create.status_code == 422 and "Already Exists" in create.text:
+        # Append-or-update existing attrs.
+        upd = orion.post(f"/v2/entities/{entity_id}/attrs", json=attrs)
+        upd.raise_for_status()
+    else:
+        create.raise_for_status()
+    return entity_id
+
+
+def wait_for_ql(
+    ql: httpx.Client,
+    entity_id: str,
+    *,
+    expected_count: int,
+    timeout_s: float = 8.0,
+) -> dict:
+    """Poll QuantumLeap until ``entity_id`` has at least ``expected_count``
+    entries, or raise ``TimeoutError``."""
+    deadline = time.monotonic() + timeout_s
+    last: dict | None = None
+    while time.monotonic() < deadline:
+        r = ql.get(
+            f"/v2/entities/{entity_id}",
+            params={"type": "DeviceMeasurement", "attrs": "numValue,unitCode"},
+        )
+        if r.status_code == 200:
+            last = r.json()
+            idx = last.get("index", []) or []
+            if len(idx) >= expected_count:
+                return last
+        time.sleep(0.25)
+    raise TimeoutError(
+        f"QL did not index {expected_count} entries for {entity_id} in {timeout_s}s "
+        f"(last response: {last})"
+    )

@@ -31,15 +31,30 @@ wait_for "QuantumLeap" "${QL_URL}/version"
 
 QL_NOTIFY_URL="http://quantumleap:8668/v2/notify"
 
-echo "Checking for existing Orion -> QuantumLeap subscription (service=${FIWARE_SERVICE}) ..."
-existing=$(curl -fsS \
+echo "Checking for existing Orion -> QuantumLeap subscriptions (service=${FIWARE_SERVICE}) ..."
+existing_ids=$(curl -fsS \
   -H "fiware-service: ${FIWARE_SERVICE}" \
   -H "fiware-servicepath: ${FIWARE_SERVICEPATH}" \
   "${ORION_URL}/v2/subscriptions" \
-  | grep -c "${QL_NOTIFY_URL}" || true)
+  | python3 -c "
+import json, sys
+url = '${QL_NOTIFY_URL}'
+ids = [s['id'] for s in json.load(sys.stdin) if s.get('notification', {}).get('http', {}).get('url') == url]
+print(' '.join(ids))
+")
 
-if [ "${existing}" -gt 0 ]; then
-  echo "Subscription already exists; skipping."
+# shellcheck disable=SC2206
+existing_arr=(${existing_ids})
+
+if [ "${#existing_arr[@]}" -ge 1 ]; then
+  echo "Subscription already exists (${#existing_arr[@]} found); keeping the first, deleting any duplicates."
+  for id in "${existing_arr[@]:1}"; do
+    echo "  Deleting duplicate ${id}"
+    curl -fsS -X DELETE \
+      -H "fiware-service: ${FIWARE_SERVICE}" \
+      -H "fiware-servicepath: ${FIWARE_SERVICEPATH}" \
+      "${ORION_URL}/v2/subscriptions/${id}" >/dev/null
+  done
   exit 0
 fi
 

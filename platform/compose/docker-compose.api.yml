@@ -12,6 +12,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - ORION_URL=http://orion:1026
+      - QUANTUMLEAP_URL=http://quantumleap:8668
       - FIWARE_SERVICE=${FIWARE_SERVICE:-iot}
       - FIWARE_SERVICEPATH=${FIWARE_SERVICEPATH:-/}
     volumes:
@@ -22,5 +23,6 @@ services:
       - "${API_PORT}:8000"
     depends_on:
       - orion
+      - quantumleap
     networks:
       - iot-net

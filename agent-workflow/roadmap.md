@@ -30,7 +30,7 @@ against the live `make up` stack.
   unknown id (404), duplicate id (409), partial update (200), update of
   unknown id (404), list empty / list populated. `make test` target wired.
 
-- [ ] **0004 telemetry-and-state** — *(TODO)*
+- [x] **0004 telemetry-and-state** — *(DONE)*
   `GET /api/v1/devices/{id}/telemetry` (date range + pagination, via
   QuantumLeap) and `GET /api/v1/devices/{id}/state` (current attribute
   values via Orion). Verify Orion → QL → CrateDB ingestion end to end with

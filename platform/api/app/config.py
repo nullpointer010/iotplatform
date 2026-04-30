@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     fiware_service: str = "iot"
     fiware_servicepath: str = "/"
     api_prefix: str = "/api/v1"
+    quantumleap_url: str = "http://quantumleap:8668"
 
 
 @lru_cache

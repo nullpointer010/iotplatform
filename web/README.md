@@ -13,8 +13,9 @@ npm run dev
 ```
 
 UI on http://localhost:3000. The API must be reachable at
-`NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8000`). Bring it
-up from the repo root with `make up`.
+`NEXT_PUBLIC_API_BASE_URL` (default `http://localhost`, matching
+`API_PORT=80` from `platform/.env`). Bring the backend up from the repo
+root with `make up`.
 
 Authentication is **not** wired up yet. The user dropdown shows a
 placeholder "Sign out" entry; real auth lands in ticket 0009 (Keycloak).

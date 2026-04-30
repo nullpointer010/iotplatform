@@ -42,6 +42,16 @@
     "registerDevice": "Register a device",
     "manageOpTypes": "Manage operation types"
   },
+  "map": {
+    "view": {
+      "list": "List",
+      "map": "Map"
+    },
+    "geolocated": "{n} of {total} devices geolocated",
+    "picker": {
+      "hint": "Click on the map or drag the marker to set the coordinates."
+    }
+  },
   "device": {
     "title": "Devices",
     "subtitle": "Connected device inventory",

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { DeleteConfirm } from "@/components/delete-confirm";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DeviceMap } from "@/components/map/device-map.client";
 import { api } from "@/lib/api";
 import { useMutateWithToast } from "@/lib/mutate";
 import { optimisticListDelete } from "@/lib/optimistic";
@@ -54,6 +55,7 @@ export default function DevicesPage() {
   const [protocol, setProtocol] = React.useState<string>(ALL);
   const [state, setState] = React.useState<string>(ALL);
   const [sort, setSort] = React.useState<SortKey>("name-asc");
+  const [view, setView] = React.useState<"list" | "map">("list");
 
   const filtered = React.useMemo(() => {
     const all = devices.data ?? [];
@@ -109,11 +111,39 @@ export default function DevicesPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{t("device.subtitle")}</p>
         </div>
-        <Button asChild>
-          <Link href="/devices/new">
-            <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md border bg-card p-0.5">
+            <button
+              type="button"
+              onClick={() => setView("list")}
+              className={`rounded px-3 py-1 text-sm transition ${
+                view === "list"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={view === "list"}
+            >
+              {t("map.view.list")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("map")}
+              className={`rounded px-3 py-1 text-sm transition ${
+                view === "map"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={view === "map"}
+            >
+              {t("map.view.map")}
+            </button>
+          </div>
+          <Button asChild>
+            <Link href="/devices/new">
+              <Plus className="mr-2 h-4 w-4" /> {t("device.new")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {showEmpty ? (
@@ -198,6 +228,21 @@ export default function DevicesPage() {
             {filtered.length} / {total}
           </div>
 
+          {view === "map" ? (
+            <div className="space-y-2">
+              <DeviceMap mode="list" devices={filtered} />
+              <div className="text-xs text-muted-foreground">
+                {t("map.geolocated", {
+                  n: filtered.filter(
+                    (d) =>
+                      typeof d.location?.latitude === "number" &&
+                      typeof d.location?.longitude === "number",
+                  ).length,
+                  total: filtered.length,
+                })}
+              </div>
+            </div>
+          ) : (
           <div className="rounded-lg border bg-card">
             <Table>
               <TableHeader>
@@ -288,6 +333,7 @@ export default function DevicesPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </>
       )}
     </div>

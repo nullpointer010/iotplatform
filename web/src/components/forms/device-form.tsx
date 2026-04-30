@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ import {
 } from "@/lib/zod";
 import { useMutateWithToast } from "@/lib/mutate";
 import type { Device, DeviceCreate, DeviceUpdate, Protocol } from "@/lib/types";
+import { DeviceMap } from "@/components/map/device-map.client";
 
 type Mode = { mode: "create" } | { mode: "edit"; device: Device };
 
@@ -165,6 +167,7 @@ export function DeviceForm(props: Mode) {
         <FormRow {...f("siteArea")} htmlFor="siteArea" error={fmt(form.formState.errors.siteArea?.message)}>
           <Input id="siteArea" placeholder={ph("siteArea")} {...inv("siteArea")} {...form.register("siteArea")} />
         </FormRow>
+        <LocationPicker form={form} hint={t("map.picker.hint")} />
       </Section>
 
       <Section title={t("device.section.admin.title")}>
@@ -288,6 +291,35 @@ function FormRow({
       <FieldLabel htmlFor={htmlFor} label={label} tooltip={tooltip} required={required} />
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function LocationPicker({
+  form,
+  hint,
+}: {
+  form: ReturnType<typeof useForm<DeviceFormValues>>;
+  hint: string;
+}) {
+  const lat = form.watch("latitude");
+  const lng = form.watch("longitude");
+  const setBoth = React.useCallback(
+    (la: number, lo: number) => {
+      form.setValue("latitude", la, { shouldDirty: true, shouldValidate: false });
+      form.setValue("longitude", lo, { shouldDirty: true, shouldValidate: false });
+    },
+    [form],
+  );
+  return (
+    <div className="space-y-1.5">
+      <DeviceMap
+        mode="picker"
+        lat={typeof lat === "number" ? lat : undefined}
+        lng={typeof lng === "number" ? lng : undefined}
+        onChange={setBoth}
+      />
+      <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

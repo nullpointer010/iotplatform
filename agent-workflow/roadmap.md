@@ -101,7 +101,7 @@ i18n via `next-intl` (`es` default, `en` available).
   `PYTHONUNBUFFERED=1` set on the API container. 4 in-process pytest
   cases; 80/80 total green.
 
-- [ ] **0011 ux-polish-i18n** — *(TODO)*
+- [x] **0011 ux-polish-i18n** — *(done 2026-04-30)*
   Visual + interaction polish on top of the 0007/0008 skeleton: tighten
   the layout (less wall-of-text, better hierarchy, more whitespace,
   fewer columns by default with progressive disclosure), uniform toasts
@@ -110,7 +110,7 @@ i18n via `next-intl` (`es` default, `en` available).
   (default) and `en` message catalogs. No new pages, no bulk delete,
   no new component library.
 
-- [ ] **0012 devices-external-map** — *(TODO)*
+- [x] **0012 devices-external-map** — *(done 2026-04-30)*
   Leaflet + OSM tiles. Map view on devices list and on device detail
   using existing `location.latitude/longitude`. Click-to-pick coordinates
   in the device form. No API key, no paid tiles.

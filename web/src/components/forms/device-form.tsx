@@ -34,33 +34,7 @@ export function DeviceForm(props: Mode) {
   const router = useRouter();
   const initial: Partial<DeviceFormValues> =
     props.mode === "edit"
-      ? {
-          name: props.device.name,
-          category: props.device.category,
-          supportedProtocol: props.device.supportedProtocol,
-          serialNumber: props.device.serialNumber,
-          serialNumberType: props.device.serialNumberType,
-          manufacturerName: props.device.manufacturerName,
-          modelName: props.device.modelName,
-          firmwareVersion: props.device.firmwareVersion,
-          deviceState: props.device.deviceState,
-          controlledProperty: props.device.controlledProperty?.join(", "),
-          mqttTopicRoot: props.device.mqttTopicRoot,
-          mqttClientId: props.device.mqttClientId,
-          mqttQos: props.device.mqttQos,
-          plcIpAddress: props.device.plcIpAddress,
-          plcPort: props.device.plcPort,
-          plcConnectionMethod: props.device.plcConnectionMethod,
-          plcReadFrequency: props.device.plcReadFrequency,
-          plcTagsMapping: props.device.plcTagsMapping
-            ? JSON.stringify(props.device.plcTagsMapping)
-            : undefined,
-          loraAppEui: props.device.loraAppEui,
-          loraDevEui: props.device.loraDevEui,
-          loraAppKey: props.device.loraAppKey,
-          loraNetworkServer: props.device.loraNetworkServer,
-          loraPayloadDecoder: props.device.loraPayloadDecoder,
-        }
+      ? toFormValues(props.device)
       : { category: "sensor", supportedProtocol: "http" };
 
   const form = useForm<DeviceFormValues>({
@@ -182,6 +156,52 @@ export function DeviceForm(props: Mode) {
         </Field>
       </Section>
 
+      <Section title="Location">
+        <Field label="Latitude (-90..90)" error={form.formState.errors.latitude?.message as string | undefined}>
+          <Input
+            type="number"
+            step="any"
+            placeholder="40.4168"
+            {...form.register("latitude")}
+          />
+        </Field>
+        <Field label="Longitude (-180..180)" error={form.formState.errors.longitude?.message as string | undefined}>
+          <Input
+            type="number"
+            step="any"
+            placeholder="-3.7038"
+            {...form.register("longitude")}
+          />
+        </Field>
+        <Field label="Site area / zone">
+          <Input
+            placeholder="Almacén Principal"
+            {...form.register("siteArea")}
+          />
+        </Field>
+      </Section>
+
+      <Section title="Administrative">
+        <Field label="Date installed">
+          <Input type="datetime-local" {...form.register("dateInstalled")} />
+        </Field>
+        <Field label="Owner(s) (comma-separated)">
+          <Input placeholder="Juan Pérez, María García" {...form.register("ownerCsv")} />
+        </Field>
+        <Field label="IP address(es) (comma-separated)">
+          <Input placeholder="192.168.1.10, 10.0.0.5" {...form.register("ipAddressCsv")} />
+        </Field>
+        <Field
+          label="Address (JSON)"
+          error={form.formState.errors.addressJson?.message}
+        >
+          <Textarea
+            placeholder='{"street": "C/ Mayor 1", "city": "Madrid"}'
+            {...form.register("addressJson")}
+          />
+        </Field>
+      </Section>
+
       {protocol === "mqtt" && (
         <Section title="MQTT">
           <Field label="mqttTopicRoot *" error={form.formState.errors.mqttTopicRoot?.message}>
@@ -195,6 +215,18 @@ export function DeviceForm(props: Mode) {
           </Field>
           <Field label="mqttQos (0–2)" error={form.formState.errors.mqttQos?.message}>
             <Input type="number" min={0} max={2} {...form.register("mqttQos")} />
+          </Field>
+          <Field label="dataTypes (JSON)">
+            <Textarea
+              placeholder='{"installation/areaA/temp": "float"}'
+              {...form.register("dataTypesJson")}
+            />
+          </Field>
+          <Field label="mqttSecurity (JSON)">
+            <Textarea
+              placeholder='{"type": "TLS"}'
+              {...form.register("mqttSecurityJson")}
+            />
           </Field>
         </Section>
       )}
@@ -220,6 +252,12 @@ export function DeviceForm(props: Mode) {
             <Textarea
               placeholder='{"DB1.DW10":"Temperatura"}'
               {...form.register("plcTagsMapping")}
+            />
+          </Field>
+          <Field label="plcCredentials (JSON)">
+            <Textarea
+              placeholder='{"username":"admin","password":"…"}'
+              {...form.register("plcCredentialsJson")}
             />
           </Field>
         </Section>
@@ -288,6 +326,66 @@ function Field({
   );
 }
 
+function toFormValues(d: Device): Partial<DeviceFormValues> {
+  return {
+    name: d.name,
+    category: d.category,
+    supportedProtocol: d.supportedProtocol,
+    serialNumber: d.serialNumber,
+    serialNumberType: d.serialNumberType,
+    manufacturerName: d.manufacturerName,
+    modelName: d.modelName,
+    firmwareVersion: d.firmwareVersion,
+    deviceState: d.deviceState,
+    controlledProperty: d.controlledProperty?.join(", "),
+    latitude: d.location?.latitude,
+    longitude: d.location?.longitude,
+    siteArea: d.location?.site_area ?? undefined,
+    dateInstalled: d.dateInstalled
+      ? d.dateInstalled.replace("Z", "").slice(0, 16)
+      : undefined,
+    ownerCsv: d.owner?.join(", "),
+    ipAddressCsv: d.ipAddress?.join(", "),
+    addressJson: d.address ? JSON.stringify(d.address) : undefined,
+    mqttTopicRoot: d.mqttTopicRoot,
+    mqttClientId: d.mqttClientId,
+    mqttQos: d.mqttQos,
+    dataTypesJson: d.dataTypes ? JSON.stringify(d.dataTypes) : undefined,
+    mqttSecurityJson: d.mqttSecurity ? JSON.stringify(d.mqttSecurity) : undefined,
+    plcIpAddress: d.plcIpAddress,
+    plcPort: d.plcPort,
+    plcConnectionMethod: d.plcConnectionMethod,
+    plcReadFrequency: d.plcReadFrequency,
+    plcTagsMapping: d.plcTagsMapping ? JSON.stringify(d.plcTagsMapping) : undefined,
+    plcCredentialsJson: d.plcCredentials
+      ? JSON.stringify(d.plcCredentials)
+      : undefined,
+    loraAppEui: d.loraAppEui,
+    loraDevEui: d.loraDevEui,
+    loraAppKey: d.loraAppKey,
+    loraNetworkServer: d.loraNetworkServer,
+    loraPayloadDecoder: d.loraPayloadDecoder,
+  };
+}
+
+function tryJson(text: string | undefined): unknown {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text; // let the server reject it
+  }
+}
+
+function csvList(text: string | undefined): string[] | undefined {
+  if (!text) return undefined;
+  const arr = text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return arr.length ? arr : undefined;
+}
+
 function toApiPayload(values: DeviceFormValues): DeviceCreate | DeviceUpdate {
   const out: Record<string, unknown> = {};
   const set = (k: string, v: unknown) => {
@@ -302,33 +400,44 @@ function toApiPayload(values: DeviceFormValues): DeviceCreate | DeviceUpdate {
   set("modelName", values.modelName);
   set("firmwareVersion", values.firmwareVersion);
   set("deviceState", values.deviceState);
-  if (values.controlledProperty) {
-    set(
-      "controlledProperty",
-      values.controlledProperty
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
+  set("controlledProperty", csvList(values.controlledProperty));
+  set("owner", csvList(values.ownerCsv));
+  set("ipAddress", csvList(values.ipAddressCsv));
+  if (values.dateInstalled) {
+    // datetime-local has no timezone; treat as UTC for round-tripping.
+    const v = values.dateInstalled.length === 16
+      ? `${values.dateInstalled}:00Z`
+      : values.dateInstalled;
+    out.dateInstalled = v;
+  }
+  if (values.latitude !== undefined && values.longitude !== undefined) {
+    const loc: Record<string, unknown> = {
+      latitude: values.latitude,
+      longitude: values.longitude,
+    };
+    if (values.siteArea) loc.site_area = values.siteArea;
+    out.location = loc;
+  }
+  if (values.addressJson) {
+    out.address = tryJson(values.addressJson);
   }
   if (values.supportedProtocol === "mqtt") {
     set("mqttTopicRoot", values.mqttTopicRoot);
     set("mqttClientId", values.mqttClientId);
     set("mqttQos", values.mqttQos);
+    if (values.dataTypesJson) out.dataTypes = tryJson(values.dataTypesJson);
+    if (values.mqttSecurityJson)
+      out.mqttSecurity = tryJson(values.mqttSecurityJson);
   }
   if (values.supportedProtocol === "plc") {
     set("plcIpAddress", values.plcIpAddress);
     set("plcPort", values.plcPort);
     set("plcConnectionMethod", values.plcConnectionMethod);
     set("plcReadFrequency", values.plcReadFrequency);
-    if (values.plcTagsMapping) {
-      try {
-        out.plcTagsMapping = JSON.parse(values.plcTagsMapping);
-      } catch {
-        // let server reject
-        out.plcTagsMapping = values.plcTagsMapping;
-      }
-    }
+    if (values.plcTagsMapping)
+      out.plcTagsMapping = tryJson(values.plcTagsMapping);
+    if (values.plcCredentialsJson)
+      out.plcCredentials = tryJson(values.plcCredentialsJson);
   }
   if (values.supportedProtocol === "lorawan") {
     set("loraAppEui", values.loraAppEui);

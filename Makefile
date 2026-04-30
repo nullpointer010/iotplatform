@@ -14,7 +14,7 @@ NETWORK_NAME := $(if $(NETWORK_NAME),$(NETWORK_NAME),iot-net)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs ps restart bootstrap clean check-env test
+.PHONY: help up down logs ps restart bootstrap clean check-env test seed
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -45,6 +45,9 @@ bootstrap: up ## First-run: ensure network, start stack, register Orion->QL subs
 
 test: check-env ## Run API integration tests against the running stack
 	$(DC) exec -T iot-api pytest -v
+
+seed: check-env ## Populate the platform with realistic seed data
+	@python3 platform/scripts/add_test_data.py
 
 clean: check-env ## DESTRUCTIVE: stop stack and drop all volumes (requires CONFIRM=1)
 	@if [ "$(CONFIRM)" != "1" ]; then \

@@ -74,6 +74,26 @@ def test_create_full_mqtt_device_round_trips(api, created_ids):
     assert got["location"] == {"latitude": 40.4168, "longitude": -3.7038}
 
 
+def test_create_with_location_site_area_round_trips(api, created_ids):
+    payload = _minimal_payload("with-zone") | {
+        "location": {
+            "latitude": 40.4168,
+            "longitude": -3.7038,
+            "site_area": "Almacén Principal",
+        }
+    }
+    r = api.post(DEVICES, json=payload)
+    assert r.status_code == 201, r.text
+    body = r.json()
+    created_ids.append(body["id"])
+    g = api.get(f"{DEVICES}/{body['id']}").json()
+    assert g["location"] == {
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+        "site_area": "Almacén Principal",
+    }
+
+
 def test_create_missing_name_returns_422(api):
     r = api.post(DEVICES, json={"category": "sensor", "supportedProtocol": "http"})
     assert r.status_code == 422

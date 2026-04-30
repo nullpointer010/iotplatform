@@ -51,6 +51,7 @@ class GeoPoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
+    site_area: str | None = None
 
 
 _PROTOCOL_REQUIRED: dict[Protocol, tuple[str, ...]] = {

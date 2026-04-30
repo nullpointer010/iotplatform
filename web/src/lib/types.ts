@@ -31,7 +31,7 @@ export interface Device {
   serialNumber?: string;
   serialNumberType?: string;
   supportedProtocol?: Protocol;
-  location?: { latitude: number; longitude: number };
+  location?: { latitude: number; longitude: number; site_area?: string | null };
   address?: Record<string, unknown>;
   manufacturerName?: string;
   modelName?: string;

@@ -10,7 +10,7 @@ from typing import Any
 # and are returned as-is on parse.
 _NGSI_TYPE: dict[str, str] = {
     # base
-    "location": "geo:point",
+    "location": "StructuredValue",
     "controlledProperty": "StructuredValue",
     "owner": "StructuredValue",
     "ipAddress": "StructuredValue",
@@ -29,8 +29,6 @@ _NGSI_TYPE: dict[str, str] = {
 
 
 def _render_value(name: str, value: Any) -> Any:
-    if name == "location" and isinstance(value, dict):
-        return f"{value['latitude']},{value['longitude']}"
     if isinstance(value, datetime):
         return value.isoformat().replace("+00:00", "Z")
     return value
@@ -38,6 +36,7 @@ def _render_value(name: str, value: Any) -> Any:
 
 def _parse_value(name: str, attr: dict[str, Any]) -> Any:
     value = attr.get("value")
+    # Back-compat: old devices stored location as geo:point "lat,lon" string.
     if name == "location" and isinstance(value, str) and "," in value:
         lat, lon = value.split(",", 1)
         return {"latitude": float(lat), "longitude": float(lon)}

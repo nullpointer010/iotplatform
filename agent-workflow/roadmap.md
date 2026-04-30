@@ -60,11 +60,23 @@ against the live `make up` stack.
   Backend additions: CORS middleware (`cors_allow_origins` setting) and
   `DELETE /devices/{id}` (cascades maintenance log).
 
-- [ ] **0008 pdf-manual-upload** — *(optional, post-spec)*
-  Out of `backend.md` scope. Implement only if still wanted after 0003–0007
+- [x] **0008 ui-iteration-1** — *(DONE)*
+  First UI iteration on top of the 0007 skeleton: complete the device
+  form (Location with `site_area`, Administrative section, JSON fields
+  for `address` / `mqttSecurity` / `plcCredentials` / `plcTagsMapping` /
+  `controlledProperty`), client-side search/filter/sort + clear on the
+  devices list, and a `Site area` column. Backend extends `GeoPoint` with
+  optional `site_area` and switches `location` to `StructuredValue` (with
+  back-compat parsing of legacy `"lat,lon"` strings). Adds
+  `platform/scripts/add_test_data.py` (≈50 devices, 8 op-types, 150
+  maintenance entries, telemetry pushed via Orion → QL) and a `make seed`
+  target.
+
+- [ ] **0009 pdf-manual-upload** — *(optional, post-spec)*
+  Out of `backend.md` scope. Implement only if still wanted after 0003–0008
   land.
 
-- [ ] **0009 keycloak-integration** — *(TODO, last)*
+- [ ] **0010 keycloak-integration** — *(TODO, last)*
   Keycloak service + JWT middleware + RBAC retrofitted onto every endpoint
   from 0003–0008. Tests for unauthenticated (401), wrong-role (403),
   authorized (200) on each route.

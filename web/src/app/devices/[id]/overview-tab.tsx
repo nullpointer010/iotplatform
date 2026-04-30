@@ -16,14 +16,25 @@ const GROUPS: Array<{ title: string; keys: (keyof Device)[] }> = [
       "firmwareVersion",
       "serialNumber",
       "serialNumberType",
-      "ipAddress",
-      "owner",
-      "dateInstalled",
     ],
   },
   {
+    title: "Location",
+    keys: ["location", "address"],
+  },
+  {
+    title: "Administrative",
+    keys: ["owner", "dateInstalled", "ipAddress"],
+  },
+  {
     title: "MQTT",
-    keys: ["mqttTopicRoot", "mqttClientId", "mqttQos", "dataTypes", "mqttSecurity"],
+    keys: [
+      "mqttTopicRoot",
+      "mqttClientId",
+      "mqttQos",
+      "dataTypes",
+      "mqttSecurity",
+    ],
   },
   {
     title: "PLC",
@@ -46,7 +57,6 @@ const GROUPS: Array<{ title: string; keys: (keyof Device)[] }> = [
       "loraPayloadDecoder",
     ],
   },
-  { title: "Location", keys: ["location", "address"] },
 ];
 
 export function OverviewTab({ device }: { device: Device }) {

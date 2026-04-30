@@ -23,7 +23,7 @@ against the live `make up` stack.
   telemetry convention, CrateDB monthly partitioning, API-via-QuantumLeap
   query path, HTTP error contract. Output: `agent-workflow/data-model.md`.
 
-- [ ] **0003 devices-crud-orion** — *(TODO)*
+- [x] **0003 devices-crud-orion** — *(DONE)*
   `POST/GET/GET-by-id/PATCH /api/v1/devices` proxied to Orion Context
   Broker following the pinned data model from 0002. Pytest suite covering
   valid create (201), missing required fields (422), wrong types (422),

@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from app.deps import OrionDep
+from app.ngsi import from_ngsi, to_ngsi, to_ngsi_attrs
+from app.orion import DuplicateEntity
+from app.schemas import DeviceIn, DeviceUpdate, to_urn
+
+router = APIRouter(prefix="/devices", tags=["devices"])
+
+
+def _normalise_id_or_400(raw: str) -> str:
+    try:
+        return to_urn(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found",
+        )
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_device(payload: DeviceIn, orion: OrionDep) -> dict:
+    entity = to_ngsi(payload.model_dump(exclude_none=True))
+    try:
+        await orion.create_entity(entity)
+    except DuplicateEntity:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Device {entity['id']} already exists",
+        )
+    fresh = await orion.get_entity(entity["id"])
+    return from_ngsi(fresh or entity)
+
+
+@router.get("")
+async def list_devices(
+    orion: OrionDep,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[dict]:
+    entities = await orion.list_entities(limit=limit, offset=offset)
+    return [from_ngsi(e) for e in entities]
+
+
+@router.get("/{device_id}")
+async def get_device(device_id: str, orion: OrionDep) -> dict:
+    eid = _normalise_id_or_400(device_id)
+    entity = await orion.get_entity(eid)
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found",
+        )
+    return from_ngsi(entity)
+
+
+@router.patch("/{device_id}")
+async def patch_device(
+    device_id: str, payload: DeviceUpdate, orion: OrionDep
+) -> dict:
+    eid = _normalise_id_or_400(device_id)
+    attrs = to_ngsi_attrs(payload.model_dump(exclude_none=True))
+    ok = await orion.patch_entity(eid, attrs)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found",
+        )
+    fresh = await orion.get_entity(eid)
+    return from_ngsi(fresh or {"id": eid, "type": "Device"})

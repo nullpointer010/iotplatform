@@ -9,6 +9,8 @@ volumes:
   postgres_data:
   keycloak_db_data:
   iot_manuals:
+  mosquitto_data:
+  mosquitto_log:
 
 services:
   cratedb:
@@ -98,6 +100,28 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # ─── Mosquitto MQTT broker (ticket 0018) ───────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ../config/mosquitto:/mosquitto/config:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - iot-net
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u $$MQTT_BRIDGE_USERNAME -P $$MQTT_BRIDGE_PASSWORD -t '$$SYS/#' -C 1 -W 3 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    environment:
+      MQTT_BRIDGE_USERNAME: ${MQTT_BRIDGE_USERNAME}
+      MQTT_BRIDGE_PASSWORD: ${MQTT_BRIDGE_PASSWORD}
 
   # ─── Keycloak (ticket 0013) ────────────────────────────────────────
   keycloak-db:

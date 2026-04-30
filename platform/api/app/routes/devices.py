@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import delete
 
 from app.deps import OrionDep, SessionDep
@@ -22,6 +22,24 @@ from app.schemas import (
 router = APIRouter(prefix="/devices", tags=["devices"])
 
 
+import logging
+
+_log = logging.getLogger("app.mqtt")
+
+
+def _maybe_refresh_bridge(request: Request) -> None:
+    """Fire-and-forget hook so MQTT subscriptions track device CRUD."""
+    bridge = getattr(request.app.state, "mqtt_bridge", None)
+    if bridge is None:
+        return
+    import asyncio
+
+    try:
+        asyncio.create_task(bridge.refresh())
+    except Exception as exc:  # pragma: no cover
+        _log.warning("bridge refresh schedule failed: %s", exc)
+
+
 def _normalise_id_or_400(raw: str) -> str:
     try:
         return to_urn(raw)
@@ -37,7 +55,7 @@ def _normalise_id_or_400(raw: str) -> str:
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_roles("operator"))],
 )
-async def create_device(payload: DeviceIn, orion: OrionDep) -> dict:
+async def create_device(payload: DeviceIn, orion: OrionDep, request: Request) -> dict:
     entity = to_ngsi(payload.model_dump(exclude_none=True))
     try:
         await orion.create_entity(entity)
@@ -47,6 +65,7 @@ async def create_device(payload: DeviceIn, orion: OrionDep) -> dict:
             detail=f"Device {entity['id']} already exists",
         )
     fresh = await orion.get_entity(entity["id"])
+    _maybe_refresh_bridge(request)
     return from_ngsi(fresh or entity)
 
 
@@ -83,7 +102,7 @@ async def get_device(device_id: str, orion: OrionDep) -> dict:
     dependencies=[Depends(require_roles("operator"))],
 )
 async def patch_device(
-    device_id: str, payload: DeviceUpdate, orion: OrionDep
+    device_id: str, payload: DeviceUpdate, orion: OrionDep, request: Request
 ) -> dict:
     eid = _normalise_id_or_400(device_id)
     existing = await orion.get_entity(eid)
@@ -118,6 +137,7 @@ async def patch_device(
             detail="Device not found",
         )
     fresh = await orion.get_entity(eid)
+    _maybe_refresh_bridge(request)
     return from_ngsi(fresh or {"id": eid, "type": "Device"})
 
 
@@ -127,7 +147,7 @@ async def patch_device(
     dependencies=[Depends(require_roles())],  # admin-only
 )
 async def delete_device(
-    device_id: str, orion: OrionDep, session: SessionDep
+    device_id: str, orion: OrionDep, session: SessionDep, request: Request
 ) -> Response:
     eid = _normalise_id_or_400(device_id)
     ok = await orion.delete_entity(eid)
@@ -141,4 +161,5 @@ async def delete_device(
         delete(MaintenanceLog).where(MaintenanceLog.device_id == device_uuid)
     )
     await session.commit()
+    _maybe_refresh_bridge(request)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

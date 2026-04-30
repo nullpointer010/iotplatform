@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     keycloak_client_id: str = "iot-web"
     auth_disabled: bool = False
 
+    # MQTT bridge (ticket 0018). Set mqtt_enabled=false to skip starting
+    # the in-process broker subscriber (e.g. when running offline tests).
+    mqtt_host: str = "mosquitto"
+    mqtt_port: int = 1883
+    mqtt_username: str = "bridge"
+    mqtt_password: str = "change-me-bridge"
+    mqtt_max_payload_bytes: int = 65536
+    mqtt_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

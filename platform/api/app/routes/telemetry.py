@@ -7,13 +7,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import require_roles
 from app.deps import OrionDep, QuantumLeapDep
-from app.schemas import to_urn
+from app.schemas import DeviceIn, to_urn
 from app.schemas_telemetry import StateResponse, TelemetryEntry, TelemetryResponse
 
 router = APIRouter(prefix="/devices", tags=["telemetry"])
 
 
 _STATE_ATTRS = ("deviceState", "dateLastValueReported", "batteryLevel")
+# Attribute names that belong to the Device metadata schema (not telemetry).
+# Anything outside this set comes from MQTT publishes and goes into
+# `StateResponse.attributes` (ticket 0018).
+_DEVICE_META_FIELDS = set(DeviceIn.model_fields.keys()) | {"id", "type", "TimeInstant"}
 
 
 def _normalise_id_or_404(raw: str) -> str:
@@ -128,4 +132,13 @@ async def get_state(device_id: str, orion: OrionDep) -> StateResponse:
             value = entity[attr]["value"]
             if value not in (None, ""):
                 projected[attr] = value
+    extras: dict[str, dict] = {}
+    for name, raw in entity.items():
+        if name in _DEVICE_META_FIELDS or name in _STATE_ATTRS:
+            continue
+        if not isinstance(raw, dict) or "value" not in raw:
+            continue
+        extras[name] = {"type": raw.get("type", "Text"), "value": raw["value"]}
+    if extras:
+        projected["attributes"] = extras
     return StateResponse(**projected)

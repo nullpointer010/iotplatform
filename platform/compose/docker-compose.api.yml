@@ -21,6 +21,11 @@ services:
       - KEYCLOAK_JWKS_URL=${KEYCLOAK_JWKS_URL:-http://keycloak:8080/realms/iot-platform/protocol/openid-connect/certs}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-iot-web}
       - AUTH_DISABLED=${AUTH_DISABLED:-false}
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_BRIDGE_USERNAME}
+      - MQTT_PASSWORD=${MQTT_BRIDGE_PASSWORD}
+      - MQTT_ENABLED=${MQTT_ENABLED:-true}
     volumes:
       - ../api/app:/app/app
       - ../api/alembic:/app/alembic
@@ -35,5 +40,6 @@ services:
       - quantumleap
       - postgres
       - keycloak
+      - mosquitto
     networks:
       - iot-net

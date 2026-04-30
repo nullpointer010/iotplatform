@@ -1,0 +1,4 @@
+# Mosquitto password file is generated at runtime by `make mqtt-password`
+# from MQTT_BRIDGE_USERNAME / MQTT_BRIDGE_PASSWORD in platform/.env.
+# The generated file is git-ignored.
+passwd

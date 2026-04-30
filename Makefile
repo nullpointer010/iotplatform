@@ -14,7 +14,7 @@ NETWORK_NAME := $(if $(NETWORK_NAME),$(NETWORK_NAME),iot-net)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs ps restart bootstrap clean check-env test seed secrets-keycloak logs-keycloak logs-oauth2-proxy
+.PHONY: help up down logs ps restart bootstrap clean check-env test seed secrets-keycloak logs-keycloak logs-oauth2-proxy mqtt-password
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -27,6 +27,7 @@ check-env:
 
 up: check-env ## Build and start the dev stack in the background
 	@docker network inspect $(NETWORK_NAME) >/dev/null 2>&1 || docker network create $(NETWORK_NAME)
+	@if [ ! -f platform/config/mosquitto/passwd ]; then $(MAKE) mqtt-password; fi
 	$(DC) up -d --build
 
 down: check-env ## Stop the dev stack (keep volumes)
@@ -59,6 +60,15 @@ logs-keycloak: check-env ## Tail Keycloak logs
 
 logs-oauth2-proxy: check-env ## Tail oauth2-proxy logs
 	$(DC) logs -f --tail=200 oauth2-proxy
+
+mqtt-password: check-env ## Generate Mosquitto password file from MQTT_BRIDGE_* in .env
+	@set -a; . $(ENV_FILE); set +a; \
+	  if [ -z "$$MQTT_BRIDGE_USERNAME" ] || [ -z "$$MQTT_BRIDGE_PASSWORD" ]; then \
+	    echo "ERROR: MQTT_BRIDGE_USERNAME / MQTT_BRIDGE_PASSWORD missing from $(ENV_FILE)"; exit 1; \
+	  fi; \
+	  docker run --rm -v $$PWD/platform/config/mosquitto:/m eclipse-mosquitto:2.0 \
+	    sh -c "mosquitto_passwd -b -c /m/passwd $$MQTT_BRIDGE_USERNAME $$MQTT_BRIDGE_PASSWORD && chmod 0644 /m/passwd" && \
+	  echo "Wrote platform/config/mosquitto/passwd for user '$$MQTT_BRIDGE_USERNAME'"
 
 clean: check-env ## DESTRUCTIVE: stop stack and drop all volumes (requires CONFIRM=1)
 	@if [ "$(CONFIRM)" != "1" ]; then \

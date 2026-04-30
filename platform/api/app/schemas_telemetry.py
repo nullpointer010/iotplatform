@@ -27,3 +27,6 @@ class StateResponse(BaseModel):
     deviceState: str | None = None
     dateLastValueReported: str | None = None
     batteryLevel: float | None = None
+    # Arbitrary attributes pushed via MQTT (ticket 0018). Keyed by attribute
+    # name; each value is `{type, value}` mirroring the NGSI-v2 attribute.
+    attributes: dict[str, dict] | None = None

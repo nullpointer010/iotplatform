@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,9 +13,19 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.db import make_engine, make_sessionmaker
 from app.middleware import RequestIdMiddleware
+from app.mqtt_bridge import MqttBridge
 from app.orion import OrionClient
 from app.quantumleap import QuantumLeapClient
-from app.routes import devices, floorplans, health, maintenance, manuals, me, telemetry
+from app.routes import (
+    devices,
+    floorplans,
+    health,
+    maintenance,
+    manuals,
+    me,
+    system,
+    telemetry,
+)
 
 
 def _run_migrations(database_url: str) -> None:
@@ -39,9 +50,20 @@ async def lifespan(app: FastAPI):
     async with httpx.AsyncClient(timeout=10.0) as client:
         app.state.orion = OrionClient(settings, client)
         app.state.ql = QuantumLeapClient(settings, client)
+        bridge: MqttBridge | None = None
+        if settings.mqtt_enabled:
+            bridge = MqttBridge(settings)
+            try:
+                await bridge.start(asyncio.get_running_loop(), app.state.orion)
+            except Exception:
+                logging.getLogger("app.mqtt").exception("MQTT bridge failed to start")
+                bridge = None
+        app.state.mqtt_bridge = bridge
         try:
             yield
         finally:
+            if bridge is not None:
+                await bridge.stop()
             await engine.dispose()
 
 
@@ -88,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(maintenance.router, prefix=settings.api_prefix)
     app.include_router(manuals.router, prefix=settings.api_prefix)
     app.include_router(floorplans.router, prefix=settings.api_prefix)
+    app.include_router(system.router, prefix=settings.api_prefix)
     return app
 
 

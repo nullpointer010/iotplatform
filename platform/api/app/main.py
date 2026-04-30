@@ -14,7 +14,7 @@ from app.db import make_engine, make_sessionmaker
 from app.middleware import RequestIdMiddleware
 from app.orion import OrionClient
 from app.quantumleap import QuantumLeapClient
-from app.routes import devices, health, maintenance, manuals, me, telemetry
+from app.routes import devices, floorplans, health, maintenance, manuals, me, telemetry
 
 
 def _run_migrations(database_url: str) -> None:
@@ -87,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(telemetry.router, prefix=settings.api_prefix)
     app.include_router(maintenance.router, prefix=settings.api_prefix)
     app.include_router(manuals.router, prefix=settings.api_prefix)
+    app.include_router(floorplans.router, prefix=settings.api_prefix)
     return app
 
 

@@ -117,7 +117,8 @@ def pg_clean() -> Iterator[None]:
     with psycopg.connect(_sync_pg_dsn(), autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "TRUNCATE device_manuals, maintenance_log, maintenance_operation_types "
+                "TRUNCATE device_placements, site_floorplans, device_manuals, "
+                "maintenance_log, maintenance_operation_types "
                 "RESTART IDENTITY CASCADE"
             )
     yield

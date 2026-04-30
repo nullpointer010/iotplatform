@@ -16,6 +16,8 @@ from sqlalchemy import engine_from_config, pool
 # Import models so their tables register on Base.metadata.
 from app.db import Base
 from app import models_maintenance  # noqa: F401
+from app import models_manuals  # noqa: F401
+from app import models_floorplans  # noqa: F401
 
 config = context.config
 

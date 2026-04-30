@@ -149,7 +149,7 @@ i18n via `next-intl` (`es` default, `en` available).
   Docker volume + Postgres metadata table (no MinIO yet). In-browser
   viewer.
 
-- [ ] **0017 internal-greenhouse-map** — *(extras, TODO)*
+- [x] **0017 internal-greenhouse-map** — *(done 2026-05-01)*
   Per-`site_area` floor-plan image upload + drag-place devices (x,y in
   % of image). AI-generated plan recorded as a future enhancement, not
   a requirement.

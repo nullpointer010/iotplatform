@@ -18,6 +18,7 @@
   "nav": {
     "dashboard": "Panel",
     "devices": "Dispositivos",
+    "sites": "Sitios",
     "opTypes": "Tipos de operación",
     "language": "Idioma",
     "spanish": "Español",
@@ -206,6 +207,33 @@
       "uploadedAt": { "label": "Subido" },
       "uploadedBy": { "label": "Por" }
     }
+  },
+  "sites": {
+    "title": "Sitios",
+    "subtitle": "Planos internos y ubicación de dispositivos por sitio.",
+    "emptyTitle": "Sin sitios",
+    "emptyHint": "Asigna `site_area` a tus dispositivos para verlos aquí.",
+    "deviceCount": "{count, plural, one {# dispositivo} other {# dispositivos}}",
+    "hasPlan": "Plano cargado",
+    "noPlan": "Sin plano",
+    "uploadTitle": "Subir plano",
+    "uploadHint": "PNG, JPEG o WebP. Máx. 10 MiB.",
+    "uploadButton": "Subir",
+    "uploading": "Subiendo…",
+    "replace": "Reemplazar plano",
+    "deletePlan": "Eliminar plano",
+    "deletePlanConfirmTitle": "Eliminar plano del sitio",
+    "deletePlanConfirmDesc": "Los marcadores de dispositivo permanecerán pero no se mostrarán hasta subir un nuevo plano.",
+    "tooLarge": "El archivo supera 10 MiB.",
+    "notImage": "El archivo no es PNG, JPEG ni WebP.",
+    "uploadFailed": "No se pudo subir el plano",
+    "noPlanTitle": "Este sitio aún no tiene plano",
+    "noPlanHint": "Sube una imagen para colocar dispositivos sobre el plano.",
+    "placedDevices": "Dispositivos en el plano",
+    "unplacedDevices": "Sin colocar",
+    "unplacedHint": "Arrastra un dispositivo desde aquí al plano para colocarlo.",
+    "removePlacement": "Quitar del plano",
+    "saveFailed": "No se pudo guardar la posición"
   },
   "zod": {
     "required": "Campo obligatorio",

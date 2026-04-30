@@ -15,6 +15,7 @@ export function TopNav() {
   const NAV = [
     { href: "/", label: t("dashboard") },
     { href: "/devices", label: t("devices") },
+    { href: "/sites", label: t("sites") },
     ...(isManager
       ? [{ href: "/maintenance/operation-types", label: t("opTypes") }]
       : []),

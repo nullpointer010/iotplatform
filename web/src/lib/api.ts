@@ -3,10 +3,13 @@ import type {
   DeviceCreate,
   DeviceManual,
   DeviceUpdate,
+  Floorplan,
   MaintenanceLog,
   MaintenanceLogCreate,
   OperationType,
   OperationTypeCreate,
+  Placement,
+  SiteSummary,
   TelemetryResponse,
 } from "./types";
 
@@ -197,4 +200,56 @@ export const api = {
     }),
   manualUrl: (manualId: string) =>
     `${BASE}${PREFIX}/manuals/${encodeURIComponent(manualId)}`,
+
+  // ----- sites & floor plans -----
+  listSites: () => request<SiteSummary[]>(`/sites`),
+  floorplanUrl: (siteArea: string) =>
+    `${BASE}${PREFIX}/sites/${encodeURIComponent(siteArea)}/floorplan`,
+  uploadFloorplan: async (siteArea: string, file: File): Promise<Floorplan> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(
+      `${BASE}${PREFIX}/sites/${encodeURIComponent(siteArea)}/floorplan`,
+      { method: "PUT", body: fd },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      const data = text ? safeJson(text) : undefined;
+      if (res.status === 401 && typeof window !== "undefined") {
+        const rd = encodeURIComponent(
+          window.location.pathname + window.location.search,
+        );
+        window.location.href = `/oauth2/sign_in?rd=${rd}`;
+      }
+      const message =
+        (data && typeof data === "object" && "detail" in data
+          ? formatDetail((data as { detail: unknown }).detail)
+          : res.statusText) || `HTTP ${res.status}`;
+      throw new ApiError(res.status, data, message);
+    }
+    return (await res.json()) as Floorplan;
+  },
+  deleteFloorplan: (siteArea: string) =>
+    request<void>(
+      `/sites/${encodeURIComponent(siteArea)}/floorplan`,
+      { method: "DELETE" },
+    ),
+  listPlacements: (siteArea: string) =>
+    request<Placement[]>(
+      `/sites/${encodeURIComponent(siteArea)}/placements`,
+    ),
+  savePlacement: (deviceId: string, body: { x_pct: number; y_pct: number }) =>
+    request<Placement>(
+      `/devices/${encodeURIComponent(deviceId)}/placement`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
+  deletePlacement: (deviceId: string) =>
+    request<void>(
+      `/devices/${encodeURIComponent(deviceId)}/placement`,
+      { method: "DELETE" },
+    ),
 };

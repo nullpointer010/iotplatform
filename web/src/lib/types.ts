@@ -124,3 +124,25 @@ export interface DeviceManual {
   uploaded_at: string;
   uploaded_by: string | null;
 }
+
+export interface SiteSummary {
+  site_area: string;
+  device_count: number;
+  has_floorplan: boolean;
+}
+
+export interface Floorplan {
+  site_area: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by: string | null;
+}
+
+export interface Placement {
+  device_id: string;
+  name: string | null;
+  x_pct: number | null;
+  y_pct: number | null;
+}

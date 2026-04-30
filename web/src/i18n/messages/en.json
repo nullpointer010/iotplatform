@@ -18,6 +18,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "devices": "Devices",
+    "sites": "Sites",
     "opTypes": "Operation types",
     "language": "Language",
     "spanish": "Español",
@@ -206,6 +207,33 @@
       "uploadedAt": { "label": "Uploaded" },
       "uploadedBy": { "label": "By" }
     }
+  },
+  "sites": {
+    "title": "Sites",
+    "subtitle": "Internal floor plans and device placement per site.",
+    "emptyTitle": "No sites",
+    "emptyHint": "Assign `site_area` to your devices to see them here.",
+    "deviceCount": "{count, plural, one {# device} other {# devices}}",
+    "hasPlan": "Plan loaded",
+    "noPlan": "No plan",
+    "uploadTitle": "Upload plan",
+    "uploadHint": "PNG, JPEG or WebP. Max 10 MiB.",
+    "uploadButton": "Upload",
+    "uploading": "Uploading…",
+    "replace": "Replace plan",
+    "deletePlan": "Delete plan",
+    "deletePlanConfirmTitle": "Delete site plan",
+    "deletePlanConfirmDesc": "Device markers stay but won't show until you upload a new plan.",
+    "tooLarge": "File exceeds 10 MiB.",
+    "notImage": "File is not PNG, JPEG or WebP.",
+    "uploadFailed": "Could not upload plan",
+    "noPlanTitle": "This site has no plan yet",
+    "noPlanHint": "Upload an image to place devices on the plan.",
+    "placedDevices": "Devices on plan",
+    "unplacedDevices": "Unplaced",
+    "unplacedHint": "Drag a device from here onto the plan to place it.",
+    "removePlacement": "Remove from plan",
+    "saveFailed": "Could not save position"
   },
   "zod": {
     "required": "Required field",

@@ -1,0 +1,18 @@
+networks:
+  iot-net:
+    driver: bridge
+    external: true
+
+services:
+  iot-api:
+    container_name: iot-api
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../api/app:/app/app
+    ports:
+      - "${API_PORT}:8000"
+    networks:
+      - iot-net

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     fiware_servicepath: str = "/"
     api_prefix: str = "/api/v1"
     quantumleap_url: str = "http://quantumleap:8668"
+    database_url: str = "postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_database"
 
 
 @lru_cache

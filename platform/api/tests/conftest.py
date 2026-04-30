@@ -5,6 +5,7 @@ import time
 from collections.abc import Iterator
 
 import httpx
+import psycopg
 import pytest
 
 
@@ -13,6 +14,16 @@ ORION_BASE = os.environ.get("ORION_URL", "http://orion:1026")
 QL_BASE = os.environ.get("QUANTUMLEAP_URL", "http://quantumleap:8668")
 FIWARE_SERVICE = os.environ.get("FIWARE_SERVICE", "iot")
 FIWARE_SERVICEPATH = os.environ.get("FIWARE_SERVICEPATH", "/")
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_database",
+)
+
+
+def _sync_pg_dsn() -> str:
+    # Strip SQLAlchemy driver suffix; psycopg accepts the PostgreSQL URI.
+    return DATABASE_URL.replace("+asyncpg", "").replace("postgresql+psycopg2://", "postgresql://")
+
 
 _FIWARE_HEADERS = {
     "Fiware-Service": FIWARE_SERVICE,
@@ -51,6 +62,20 @@ def created_ids(orion: httpx.Client) -> Iterator[list[str]]:
             orion.delete(f"/v2/entities/{eid}")
         except httpx.HTTPError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def pg_clean() -> Iterator[None]:
+    """TRUNCATE maintenance tables before each test for isolation.
+
+    Cheap on a near-empty database; keeps tests order-independent.
+    """
+    with psycopg.connect(_sync_pg_dsn(), autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "TRUNCATE maintenance_log, maintenance_operation_types RESTART IDENTITY CASCADE"
+            )
+    yield
 
 
 def push_measurement(

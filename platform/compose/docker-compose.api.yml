@@ -15,8 +15,11 @@ services:
       - QUANTUMLEAP_URL=http://quantumleap:8668
       - FIWARE_SERVICE=${FIWARE_SERVICE:-iot}
       - FIWARE_SERVICEPATH=${FIWARE_SERVICEPATH:-/}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     volumes:
       - ../api/app:/app/app
+      - ../api/alembic:/app/alembic
+      - ../api/alembic.ini:/app/alembic.ini
       - ../api/tests:/app/tests
       - ../api/pytest.ini:/app/pytest.ini
     ports:
@@ -24,5 +27,6 @@ services:
     depends_on:
       - orion
       - quantumleap
+      - postgres
     networks:
       - iot-net

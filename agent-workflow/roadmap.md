@@ -37,7 +37,7 @@ against the live `make up` stack.
   a simulated sensor. Tests: ingest sample, query empty range, query with
   data, malformed date range (400), unknown device (404).
 
-- [ ] **0005 maintenance-log** — *(TODO)*
+- [x] **0005 maintenance-log** — *(DONE)*
   Postgres `maintenance_operation_types` + `maintenance_log` schema from
   `context/doc/backend.md` via Alembic. Endpoints per spec
   (`POST/GET /devices/{id}/maintenance/log`,

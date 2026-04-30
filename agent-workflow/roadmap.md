@@ -6,60 +6,70 @@ to active.
 
 ## Phase 1 — Foundation
 
-- [ ] **0001 platform-skeleton-audit** — *(active, planning)*
-  Decide canonical repo layout for `platform/`, stand up a minimal Compose
-  stack that boots, expose it through a top-level `Makefile`. Keep
-  `context/platform/` as historical reference.
+Source of truth for endpoints + data model is `context/doc/backend.md`.
+Each code ticket ships its own pytest suite (good/bad/missing/unknown
+inputs) in the same PR as the routes it adds. `make test` runs the suite
+against the live `make up` stack.
 
-- [ ] **0002 device-document-upload** — *(TODO)*
-  Vertical slice: a minimal device entity plus the ability to upload, list
-  and download a PDF manual attached to a sensor. This is intentionally a
-  thin end-to-end feature (no full device CRUD yet), chosen to exercise:
-  - the API layer (FastAPI route, multipart upload),
-  - persistence of the device record,
-  - object storage for the file (decision deferred to design: filesystem
-    volume vs. early MinIO),
-  - basic acceptance test.
-  Acts as the seed on which 0003 (testing) and the rest of the device API
-  will grow.
+- [x] **0001 platform-skeleton-audit** — *(done 2026-04-30)*
+  Canonical `platform/` layout, top-level `Makefile`, full Compose stack
+  with bumped images (crate 6.2.6, postgres 17.9, mongo 8.2.7, orion 4.4.0,
+  quantumleap 1.0.0). Frozen `context/platform/` as historical reference.
 
-- [ ] **0003 testing-infrastructure** — *(TODO)*
-  Hard-gate testing setup. Goals:
-  - All tests must pass for the build/image to be considered valid; failing
-    tests must break `make build` / CI.
-  - Tests run against ephemeral Docker dependencies (Postgres, CrateDB,
-    Orion+MongoDB) spun up per test session via `testcontainers-python`,
-    in the spirit of `crop-edc/connector`'s `PostgresTestcontainer` pattern.
-  - Seed a minimal fake-data dataset (devices, telemetry samples, one PDF
-    manual) and exercise the endpoints created up to 0002 against it.
-  - Pre-commit hook + `make test` target.
-  Tickets 0001 and 0002 will be retroactively brought under this gate.
+- [x] **0002 data-model-decision** — *(done 2026-04-30)*
+  Doc-only. Pinned strategy (c): flat schema, FIWARE Smart Data Models
+  naming, no full SDM adoption. Pinned `Device` base attributes,
+  per-protocol extensions (MQTT/PLC/LoRaWAN), `DeviceMeasurement`
+  telemetry convention, CrateDB monthly partitioning, API-via-QuantumLeap
+  query path, HTTP error contract. Output: `agent-workflow/data-model.md`.
 
-- [ ] **0004 web-ui-skeleton** — *(TODO)*
-  Minimal frontend application under a top-level `web/` folder.
-  - Stack aligned with `/home/maru/crop-edc/frontend`: Next.js 14+,
-    TypeScript, Tailwind, Radix UI, react-hook-form, Zod.
-  - Visual identity aligned with `/home/maru/cropweb` palette
-    (`--color-crop-dark #2E5945`, `--color-crop-olive #394022`,
-    `--color-crop-lime #D0D98F`, `--color-crop-light #F2F2F2`).
-  - First screen: list of devices and "upload manual" action backed by 0002.
-  - Test setup mirrors 0003: Jest unit tests + at least one integration test
-    that boots the API against ephemeral Docker dependencies, similar to the
-    testcontainers pattern used by `crop-edc/connector`.
+- [ ] **0003 devices-crud-orion** — *(TODO)*
+  `POST/GET/GET-by-id/PATCH /api/v1/devices` proxied to Orion Context
+  Broker following the pinned data model from 0002. Pytest suite covering
+  valid create (201), missing required fields (422), wrong types (422),
+  unknown id (404), duplicate id (409), partial update (200), update of
+  unknown id (404), list empty / list populated. `make test` target wired.
 
-## Phase 1 — Backend completion (tentative, after the slice above)
+- [ ] **0004 telemetry-and-state** — *(TODO)*
+  `GET /api/v1/devices/{id}/telemetry` (date range + pagination, via
+  QuantumLeap) and `GET /api/v1/devices/{id}/state` (current attribute
+  values via Orion). Verify Orion → QL → CrateDB ingestion end to end with
+  a simulated sensor. Tests: ingest sample, query empty range, query with
+  data, malformed date range (400), unknown device (404).
 
-- [ ] **0005 devices-crud-api** — full `GET/POST/GET-by-id/PATCH /api/v1/devices`
-  against Orion Context Broker. *(TODO)*
-- [ ] **0006 telemetry-query-api** — `GET /api/v1/devices/{id}/telemetry` via
-  QuantumLeap + CrateDB. *(TODO)*
-- [ ] **0007 maintenance-log-api** — maintenance endpoints against Postgres.
-  *(TODO)*
-- [ ] **0008 keycloak-integration** — Keycloak service + JWT middleware +
-  RBAC on existing endpoints. *(TODO)*
+- [ ] **0005 maintenance-log** — *(TODO)*
+  Postgres `maintenance_operation_types` + `maintenance_log` schema from
+  `context/doc/backend.md` via Alembic. Endpoints per spec
+  (`POST/GET /devices/{id}/maintenance/log`,
+  `PATCH/DELETE /maintenance/log/{id}`,
+  `GET/POST/PATCH/DELETE /maintenance/operation-types`). Tests:
+  create/list/patch/delete log, FK to nonexistent device (404), bad
+  operation_type (422).
+
+- [ ] **0006 protocol-extensions** — *(TODO)*
+  Per-type metadata validation: MQTT first, then PLC, then LoRaWAN
+  (split into subtickets if scope grows). Tests covering required-field
+  validation per protocol.
+
+- [ ] **0007 web-ui-skeleton** — *(TODO)*
+  Minimal frontend under top-level `web/`. Stack aligned with
+  `/home/maru/crop-edc/frontend` (Next.js, TypeScript, Tailwind, Radix UI,
+  react-hook-form, Zod). Visual palette aligned with `/home/maru/cropweb`
+  (`--color-crop-dark #2E5945`, `--color-crop-olive #394022`,
+  `--color-crop-lime #D0D98F`, `--color-crop-light #F2F2F2`). First
+  screens consume 0003–0005.
+
+- [ ] **0008 pdf-manual-upload** — *(optional, post-spec)*
+  Out of `backend.md` scope. Implement only if still wanted after 0003–0007
+  land.
+
+- [ ] **0009 keycloak-integration** — *(TODO, last)*
+  Keycloak service + JWT middleware + RBAC retrofitted onto every endpoint
+  from 0003–0008. Tests for unauthenticated (401), wrong-role (403),
+  authorized (200) on each route.
 
 ## Phase 2+ — Later
 
-Phase 2 (MQTT ingestion, realtime), Phase 3 (Superset, H2O, Node-RED, NiFi,
-Airflow, MinIO at scale, Prometheus/Grafana) and operations (Kubernetes) are
-out of scope for now and will be expanded once Phase 1 is closed.
+Phase 2 (MQTT/CoAP/HTTP ingestion, realtime), Phase 3 (Superset, H2O,
+Node-RED, NiFi, Airflow, MinIO at scale, Prometheus/Grafana) and
+Kubernetes deployment are out of scope until Phase 1 closes.

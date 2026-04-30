@@ -2,7 +2,9 @@
 
 > Living document. Updated by every ticket that changes structure or
 > infrastructure. Source of truth for product requirements remains
-> `context/doc/backend.md` (Spanish).
+> `context/doc/backend.md` (Spanish). The data model (NGSI entity types,
+> attribute names, telemetry conventions, CrateDB partitioning) is pinned
+> in [`data-model.md`](data-model.md).
 
 ## Repo layout
 

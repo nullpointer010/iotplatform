@@ -1,0 +1,17 @@
+# CrateDB Configuration
+cluster.name: iot-cluster
+node.name: iot-cratedb-node1
+
+# Network settings
+network.host: 0.0.0.0
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+
+# Authentication (básica para desarrollo)
+auth.host_based.enabled: false
+
+# Logging
+logger.level: INFO
+
+# Stats
+stats.enabled: true

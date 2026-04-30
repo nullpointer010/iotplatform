@@ -1,0 +1,7 @@
+fastapi==0.95.2
+uvicorn==0.22.0
+dotenv==0.9.9
+pydantic==1.10.7
+pytz==2024.1
+sqlalchemy==2.0.44
+sqlalchemy-cratedb==0.41.0

@@ -1,0 +1,17 @@
+networks:
+  iot-net:
+    driver: bridge
+    external: true
+
+services:
+  iot-api:
+    container_name: iot-api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    volumes:
+      - "./api:/app"
+    ports:
+      - "${API_PORT}:8000"
+    networks:
+      - iot-net

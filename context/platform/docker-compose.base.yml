@@ -1,0 +1,104 @@
+networks:
+  iot-net:
+    driver: bridge
+    external: true
+
+volumes:
+  cratedb_data:
+  orion_data:
+  mongo_data:
+  postgres-data:
+
+services:
+  cratedb:
+    image: crate:5.6.2
+    container_name: cratedb
+    restart: always
+    environment:
+      - CRATE_HEAP_SIZE=${CRATE_HEAP_SIZE}
+    command: >
+      crate
+      -Cnetwork.host=0.0.0.0
+      -Cdiscovery.type=single-node
+      -Ccluster.name=iot-cluster
+      -Chttp.cors.enabled=true
+      -Chttp.cors.allow-origin="*"
+      -Cauth.host_based.enabled=false
+    depends_on:
+      - orion
+      - postgres
+    ports:
+      - "${ADMIN_UI_PORT}:4200" # Admin UI
+      - "${CRATEDB_PORT}:5432" # PostgreSQL wire protocol
+    volumes:
+      - cratedb_data:/data
+      - ./config/cratedb:/opt/crate/config
+    networks:
+      - iot-net
+
+  postgres:
+    restart: always
+    image: "postgres:16"
+    ports:
+      - "5432"
+    networks:
+      - iot-net
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  orion:
+    image: fiware/orion:3.10.1
+    container_name: orion
+    depends_on:
+      - mongo-db
+    command: -dbhost mongo-db -logLevel INFO
+    ports:
+      - "1026:1026"
+    networks:
+      - iot-net
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail -s http://orion:1026/version || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mongo-db:
+    image: mongo:6.0
+    container_name: mongo
+    hostname: mongo-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - iot-net
+    restart: unless-stopped
+
+  quantumleap:
+    image: orchestracities/quantumleap:0.8.3
+    container_name: quantumleap
+    hostname: quantumleap
+    ports:
+      - "8668:8668"
+    environment:
+      - CRATE_HOST=${CRATE_HOST}
+      - CRATE_PORT=${CRATE_PORT}
+      - LOGLEVEL=${LOGLEVEL}
+      - USE_GEOCODING=${USE_GEOCODING}
+      - CACHE_QUERIES=${CACHE_QUERIES}
+      - WQ_MAX_RETRIES=${WQ_MAX_RETRIES}
+    depends_on:
+      - orion
+      - cratedb
+    networks:
+      - iot-net
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail -s http://quantumleap:8668/version || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -188,6 +188,25 @@
     "emptyTitle": "No data",
     "emptyHint": "No measurements have been received for this device in the selected range."
   },
+  "manuals": {
+    "tab": "Manuals",
+    "addTitle": "Upload manual (PDF)",
+    "uploadButton": "Upload",
+    "uploading": "Uploading…",
+    "emptyTitle": "No manuals",
+    "emptyHint": "Upload a PDF so it is available next to the device.",
+    "deleteConfirmTitle": "Delete manual",
+    "deleteConfirmDesc": "The file will be removed permanently.",
+    "tooLarge": "File exceeds 10 MiB.",
+    "notPdf": "File is not a PDF.",
+    "uploadFailed": "Could not upload manual",
+    "field": {
+      "filename": { "label": "Name" },
+      "size": { "label": "Size" },
+      "uploadedAt": { "label": "Uploaded" },
+      "uploadedBy": { "label": "By" }
+    }
+  },
   "zod": {
     "required": "Required field",
     "orionForbidden": "Character not allowed «{char}». Use only letters, numbers and - _ . , : / @"

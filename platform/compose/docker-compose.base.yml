@@ -8,6 +8,7 @@ volumes:
   mongo_data:
   postgres_data:
   keycloak_db_data:
+  iot_manuals:
 
 services:
   cratedb:

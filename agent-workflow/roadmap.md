@@ -144,7 +144,7 @@ i18n via `next-intl` (`es` default, `en` available).
   401 from the API triggers a re-login; 403 raises a Spanish toast.
   User menu shows username + role badge.
 
-- [ ] **0016 device-manuals-pdf** — *(extras, TODO)*
+- [x] **0016 device-manuals-pdf** — *(done 2026-04-30)*
   Upload / list / view / delete PDF manuals attached to a device. Local
   Docker volume + Postgres metadata table (no MinIO yet). In-browser
   viewer.

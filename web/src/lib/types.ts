@@ -114,3 +114,13 @@ export interface MaintenanceLogCreate {
   component_path?: string | null;
   details_notes?: string | null;
 }
+
+export interface DeviceManual {
+  id: string;
+  device_id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+  uploaded_by: string | null;
+}

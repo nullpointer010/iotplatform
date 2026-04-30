@@ -188,6 +188,25 @@
     "emptyTitle": "Sin datos",
     "emptyHint": "Aún no se han recibido medidas para este dispositivo en el rango seleccionado."
   },
+  "manuals": {
+    "tab": "Manuales",
+    "addTitle": "Subir manual (PDF)",
+    "uploadButton": "Subir",
+    "uploading": "Subiendo…",
+    "emptyTitle": "Sin manuales",
+    "emptyHint": "Sube un PDF para que esté disponible junto al dispositivo.",
+    "deleteConfirmTitle": "Eliminar manual",
+    "deleteConfirmDesc": "El archivo se eliminará permanentemente.",
+    "tooLarge": "El archivo supera 10 MiB.",
+    "notPdf": "El archivo no es un PDF.",
+    "uploadFailed": "No se pudo subir el manual",
+    "field": {
+      "filename": { "label": "Nombre" },
+      "size": { "label": "Tamaño" },
+      "uploadedAt": { "label": "Subido" },
+      "uploadedBy": { "label": "Por" }
+    }
+  },
   "zod": {
     "required": "Campo obligatorio",
     "orionForbidden": "Carácter no permitido «{char}». Usa solo letras, números y - _ . , : / @"

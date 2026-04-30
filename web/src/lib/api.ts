@@ -1,6 +1,7 @@
 import type {
   Device,
   DeviceCreate,
+  DeviceManual,
   DeviceUpdate,
   MaintenanceLog,
   MaintenanceLogCreate,
@@ -160,4 +161,40 @@ export const api = {
     request<void>(`/maintenance/log/${encodeURIComponent(logId)}`, {
       method: "DELETE",
     }),
+
+  // ----- device manuals (PDFs) -----
+  listManuals: (deviceId: string) =>
+    request<DeviceManual[]>(
+      `/devices/${encodeURIComponent(deviceId)}/manuals`,
+    ),
+  uploadManual: async (deviceId: string, file: File): Promise<DeviceManual> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(
+      `${BASE}${PREFIX}/devices/${encodeURIComponent(deviceId)}/manuals`,
+      { method: "POST", body: fd },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      const data = text ? safeJson(text) : undefined;
+      if (res.status === 401 && typeof window !== "undefined") {
+        const rd = encodeURIComponent(
+          window.location.pathname + window.location.search,
+        );
+        window.location.href = `/oauth2/sign_in?rd=${rd}`;
+      }
+      const message =
+        (data && typeof data === "object" && "detail" in data
+          ? formatDetail((data as { detail: unknown }).detail)
+          : res.statusText) || `HTTP ${res.status}`;
+      throw new ApiError(res.status, data, message);
+    }
+    return (await res.json()) as DeviceManual;
+  },
+  deleteManual: (manualId: string) =>
+    request<void>(`/manuals/${encodeURIComponent(manualId)}`, {
+      method: "DELETE",
+    }),
+  manualUrl: (manualId: string) =>
+    `${BASE}${PREFIX}/manuals/${encodeURIComponent(manualId)}`,
 };

@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { OverviewTab } from "./overview-tab";
 import { TelemetryTab } from "./telemetry-tab";
 import { MaintenanceTab } from "./maintenance-tab";
+import { ManualsTab } from "./manuals-tab";
 
 export default function DeviceDetailPage() {
   const params = useParams<{ id: string }>();
@@ -68,6 +69,7 @@ export default function DeviceDetailPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+          <TabsTrigger value="manuals">Manuals</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab device={device.data} />
@@ -77,6 +79,9 @@ export default function DeviceDetailPage() {
         </TabsContent>
         <TabsContent value="maintenance">
           <MaintenanceTab deviceId={device.data.id} />
+        </TabsContent>
+        <TabsContent value="manuals">
+          <ManualsTab deviceId={device.data.id} />
         </TabsContent>
       </Tabs>
     </div>

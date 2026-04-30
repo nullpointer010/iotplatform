@@ -75,7 +75,17 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={() => {
-            window.location.href = "/oauth2/sign_out?rd=/";
+            // Two-stage logout: oauth2-proxy clears its cookie, then
+            // redirects the browser through Keycloak's end_session
+            // endpoint to also clear the Keycloak SSO cookie. Without
+            // the second hop, Keycloak silently re-issues a session
+            // and "logout" appears to do nothing.
+            const kcLogout =
+              "http://localhost:8081/realms/iot-platform/protocol/openid-connect/logout" +
+              "?client_id=iot-web&post_logout_redirect_uri=" +
+              encodeURIComponent("http://localhost/");
+            window.location.href =
+              "/oauth2/sign_out?rd=" + encodeURIComponent(kcLogout);
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />

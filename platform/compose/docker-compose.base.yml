@@ -186,6 +186,10 @@ services:
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_REVERSE_PROXY: "true"
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      # On /oauth2/sign_out, also call Keycloak's end_session endpoint so the
+      # SSO cookie is killed too — otherwise Keycloak silently re-issues a
+      # session on the next request and "logout" appears to do nothing.
+      OAUTH2_PROXY_BACKEND_LOGOUT_URL: "http://localhost:${KEYCLOAK_HTTP_PORT}/realms/iot-platform/protocol/openid-connect/logout?id_token_hint={id_token}"
     ports:
       - "127.0.0.1:${WEB_PORT}:4180"
     networks:

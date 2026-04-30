@@ -79,3 +79,14 @@ class OrionClient:
         if r.status_code == 404:
             return False
         raise OrionError(f"patch_entity {r.status_code}: {r.text}")
+
+    async def delete_entity(self, entity_id: str) -> bool:
+        r = await self._client.delete(
+            f"{self._base}/v2/entities/{entity_id}",
+            headers=self._headers,
+        )
+        if r.status_code == 204:
+            return True
+        if r.status_code == 404:
+            return False
+        raise OrionError(f"delete_entity {r.status_code}: {r.text}")

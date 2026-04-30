@@ -51,13 +51,14 @@ against the live `make up` stack.
   rejection, field-format validation (MQTT topic, IPv4, hex EUIs/AppKey),
   PATCH cross-validates against merged Orion state.
 
-- [ ] **0007 web-ui-skeleton** — *(TODO)*
-  Minimal frontend under top-level `web/`. Stack aligned with
-  `/home/maru/crop-edc/frontend` (Next.js, TypeScript, Tailwind, Radix UI,
-  react-hook-form, Zod). Visual palette aligned with `/home/maru/cropweb`
-  (`--color-crop-dark #2E5945`, `--color-crop-olive #394022`,
-  `--color-crop-lime #D0D98F`, `--color-crop-light #F2F2F2`). First
-  screens consume 0003–0005.
+- [x] **0007 web-ui-skeleton** — *(DONE)*
+  Next.js 14 App Router + TypeScript + Tailwind + Radix UI + react-hook-form +
+  Zod + TanStack Query under `web/`. Crop palette mapped to HSL tokens.
+  Pages: dashboard, devices list/new/detail (overview + telemetry +
+  maintenance tabs)/edit, operation types catalog. Delete dialogs across
+  all entities. User menu placeholder (real auth deferred to 0009).
+  Backend additions: CORS middleware (`cors_allow_origins` setting) and
+  `DELETE /devices/{id}` (cascades maintenance log).
 
 - [ ] **0008 pdf-manual-upload** — *(optional, post-spec)*
   Out of `backend.md` scope. Implement only if still wanted after 0003–0007

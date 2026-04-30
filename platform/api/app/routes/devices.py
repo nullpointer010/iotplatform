@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import delete
 
-from app.deps import OrionDep
+from app.deps import OrionDep, SessionDep
+from app.models_maintenance import MaintenanceLog
 from app.ngsi import from_ngsi, to_ngsi, to_ngsi_attrs
 from app.orion import DuplicateEntity
 from app.schemas import (
@@ -102,3 +105,22 @@ async def patch_device(
         )
     fresh = await orion.get_entity(eid)
     return from_ngsi(fresh or {"id": eid, "type": "Device"})
+
+
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_device(
+    device_id: str, orion: OrionDep, session: SessionDep
+) -> Response:
+    eid = _normalise_id_or_400(device_id)
+    ok = await orion.delete_entity(eid)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found",
+        )
+    device_uuid = UUID(eid.rsplit(":", 1)[-1])
+    await session.execute(
+        delete(MaintenanceLog).where(MaintenanceLog.device_id == device_uuid)
+    )
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

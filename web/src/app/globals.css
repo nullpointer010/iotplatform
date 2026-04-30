@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Crop palette mapped onto shadcn HSL tokens. */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* crop-dark #2E5945 → hsl(143 32% 27%) */
+    --primary: 143 32% 27%;
+    --primary-foreground: 60 9% 98%;
+
+    /* crop-light #F2F2F2 → hsl(0 0% 95%) */
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 143 32% 27%;
+
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 40%;
+
+    /* crop-lime #D0D98F → hsl(67 47% 71%) */
+    --accent: 67 47% 88%;
+    --accent-foreground: 70 31% 19%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 143 32% 27%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+  }
+}

@@ -5,6 +5,7 @@ import httpx
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import make_engine, make_sessionmaker
@@ -48,6 +49,14 @@ def create_app() -> FastAPI:
         description="REST API for the CropDataSpace IoT platform.",
         version="0.1.0",
         lifespan=lifespan,
+    )
+    origins = [o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.include_router(health.router)
     app.include_router(devices.router, prefix=settings.api_prefix)

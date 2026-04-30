@@ -154,8 +154,108 @@ i18n via `next-intl` (`es` default, `en` available).
   % of image). AI-generated plan recorded as a future enhancement, not
   a requirement.
 
-## Phase 2+ — Later
+## Phase 2 — "Devices actually talk"
 
-Phase 2 (MQTT/CoAP/HTTP ingestion, realtime), Phase 3 (Superset, H2O,
-Node-RED, NiFi, Airflow, MinIO at scale, Prometheus/Grafana) and
-Kubernetes deployment are out of scope until Phase 1 closes.
+Phase 1 closed with a polished **metadata catalog** but nothing is
+ingesting real telemetry; every measurement today comes from
+`make seed`. Phase 2 turns the platform into something a greenhouse
+operator can actually deploy: real ingestion, live visibility, alerts,
+actuators, and basic operability (audit, health, backups, prod TLS).
+
+Ordering rationale: ingestion first (without it nothing else means
+anything), then make the data visible (charts, live overlay), then
+close the loop (alerts, commands), then operability and docs.
+
+- [ ] **0018 mqtt-broker-and-bridge** — *(Phase 2, blocker)*
+  Add Eclipse Mosquitto to the Compose stack (auth via password file,
+  no TLS in dev) and a Python `mqtt-bridge` worker inside `iot-api`
+  that subscribes per-device to `mqttTopicRoot/+` and forwards each
+  JSON message into Orion (which fan-outs to QL → Crate as today).
+  Validates the payload against the device's `dataTypes` map. Tests
+  use `paho-mqtt` to publish and assert a CrateDB row appears.
+
+- [ ] **0019 http-ingest-endpoint** — *(Phase 2)*
+  `POST /api/v1/devices/{id}/telemetry` with a small JSON body, for
+  HTTP-only sensors and LoRaWAN webhook bridges (Chirpstack / TTN).
+  Validated against `dataTypes`. Auth via a service-account JWT or a
+  per-device static API key (new `device_ingest_keys` table) — kept
+  off the user-RBAC ladder so a sensor never needs a Keycloak account.
+
+- [ ] **0020 device-live-state-and-charts** — *(Phase 2)*
+  Device detail "Estado" tab consumes `/state` and shows the current
+  attribute values; "Telemetría" tab gets a real time-series chart
+  (Recharts) over the last 24 h / 7 d / 30 d. Dashboard adds a
+  "Últimas medidas" card per site. No new endpoints — uses the ones
+  we shipped in 0004.
+
+- [ ] **0021 floorplan-live-overlay** — *(Phase 2)*
+  On `/sites/[siteArea]`, fetch each placed device's last value and
+  state and color-code the marker (active / maintenance / inactive +
+  numeric badge for the primary `controlledProperty`). 30 s polling,
+  "stale" pill if `> N min` since last sample. Reuses 0017 placements.
+
+- [ ] **0022 alerts-and-rules** — *(Phase 2)*
+  Per-device threshold rules (`attr`, `min`, `max`, `stale_after_s`)
+  in Postgres. A small evaluator (cron-style task inside `iot-api`)
+  raises rows in `alerts(device_id, rule_id, opened_at, closed_at,
+  ack_by)`. Web inbox at `/alerts` and a per-device alert badge.
+  RBAC: viewer reads, operator acks, manager configures rules,
+  delete = admin. Notifications limited to in-app for now (webhook /
+  email deferred to a follow-up).
+
+- [ ] **0023 actuator-commands** — *(Phase 2)*
+  UI + endpoint to send a write command: MQTT publish on the device's
+  `mqttTopicRoot/cmd` subtopic, or PATCH an Orion attribute that an
+  external runtime listens to (PLC write deferred to a later ticket).
+  Recorded in the audit log (0024). Operator+ only.
+
+- [ ] **0024 audit-log** — *(Phase 2)*
+  `audit_events(id, ts, actor, role, method, path, target_id, summary)`
+  table populated by a FastAPI middleware on every state-changing
+  route. Admin-only `/audit` page with filtering by actor / target /
+  date. No retention policy yet.
+
+- [ ] **0025 csv-import-export** — *(Phase 2)*
+  Bulk CSV upload of devices (dry-run + partial-success report,
+  manager+) and CSV/JSON export of telemetry over a chosen date range
+  (viewer+). Streamed responses to keep memory flat on big exports.
+
+- [ ] **0026 system-health-page** — *(Phase 2)*
+  `GET /api/v1/system/health` aggregates a ping per upstream (Orion,
+  QuantumLeap, CrateDB, Postgres, Mosquitto, Keycloak) with latency
+  and a coarse status. Admin-only `/system` page. Replaces the
+  current single `/healthz`.
+
+- [ ] **0027 backups-and-restore** — *(Phase 2)*
+  `make backup` snapshots Postgres + Mongo (Orion) + Crate + the
+  manuals/floorplans Docker volume into a timestamped tarball.
+  `make restore TARBALL=...` reverses it. Documented procedure;
+  cron'd backup deferred.
+
+- [ ] **0028 prod-edge-tls** — *(Phase 2)*
+  Production Compose profile with Caddy or Traefik in front of
+  oauth2-proxy doing Let's Encrypt + HTTP→HTTPS. Secrets moved to
+  env-or-file. New `make up-prod` target. Still single-host; HA and
+  Kubernetes are Phase 3.
+
+- [ ] **0029 operator-handbook** — *(Phase 2)*
+  End-user docs under `docs/`: "onboard an MQTT sensor", "create a
+  maintenance plan", "configure an alert", "interpret the floor plan".
+  Linked from `README.md`. Spanish primary, English secondary
+  (matches the i18n direction).
+
+### Phase 2 stretch (only if time permits)
+
+- [ ] **0030 multi-site-rbac** — Per-`site_area` role grants on top of
+  the global Keycloak roles. A user can be `operator` on
+  `IFAPA - Invernadero 1` but only `viewer` everywhere else.
+- [ ] **0031 plc-modbus-bridge** — Equivalent of 0018 but for Modbus
+  TCP, polling at `plcReadFrequency` and mapping `plcTagsMapping` →
+  Orion attributes.
+
+## Phase 3+ — Later
+
+Phase 3 lands the analytics / automation layer (Apache Superset,
+H2O.ai, Node-RED, Apache NiFi, Apache Airflow, MinIO at scale,
+Prometheus / Grafana) and Kubernetes deployment. Out of scope until
+Phase 2 closes.

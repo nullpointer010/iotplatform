@@ -1,0 +1,116 @@
+{
+  "realm": "iot-platform",
+  "displayName": "CropDataSpace IoT",
+  "enabled": true,
+  "loginTheme": "keycloak",
+  "accessTokenLifespan": 1800,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      { "name": "viewer",               "description": "Read-only access to devices, telemetry and maintenance log." },
+      { "name": "operator",             "description": "Manage devices and read telemetry." },
+      { "name": "maintenance_manager",  "description": "Manage maintenance log and operation types." },
+      { "name": "admin",                "description": "Full administrative access." }
+    ]
+  },
+  "defaultRoles": [],
+  "clients": [
+    {
+      "clientId": "iot-web",
+      "name": "IoT Web (oauth2-proxy)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-iot-web-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4180/oauth2/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:4180"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4180/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    },
+    {
+      "clientId": "iot-api",
+      "name": "IoT API (FastAPI, ticket 0014)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "dev-iot-api-secret",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "defaultClientScopes": ["profile", "roles", "email"],
+      "optionalClientScopes": ["microprofile-jwt"]
+    }
+  ],
+  "users": [
+    {
+      "username": "viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "viewer@iot.local",
+      "firstName": "Vera",
+      "lastName": "Viewer",
+      "credentials": [
+        { "type": "password", "value": "change-me-viewer", "temporary": false }
+      ],
+      "realmRoles": ["viewer"]
+    },
+    {
+      "username": "operator",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "operator@iot.local",
+      "firstName": "Olga",
+      "lastName": "Operator",
+      "credentials": [
+        { "type": "password", "value": "change-me-operator", "temporary": false }
+      ],
+      "realmRoles": ["operator"]
+    },
+    {
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "manager@iot.local",
+      "firstName": "Mario",
+      "lastName": "Manager",
+      "credentials": [
+        { "type": "password", "value": "change-me-manager", "temporary": false }
+      ],
+      "realmRoles": ["maintenance_manager"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@iot.local",
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "credentials": [
+        { "type": "password", "value": "change-me-admin", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}

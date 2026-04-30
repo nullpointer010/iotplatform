@@ -115,7 +115,7 @@ i18n via `next-intl` (`es` default, `en` available).
   using existing `location.latitude/longitude`. Click-to-pick coordinates
   in the device form. No API key, no paid tiles.
 
-- [ ] **0013 keycloak-and-edge-auth** — *(spec, TODO)*
+- [x] **0013 keycloak-and-edge-auth** — *(done 2026-04-30)*
   Keycloak 24 service + dedicated `keycloak-db` (postgres 17), realm
   `iot-platform` imported from `platform/config/keycloak/realm-iot.json`
   with 4 realm roles (`viewer`, `operator`, `maintenance_manager`,

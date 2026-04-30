@@ -14,7 +14,7 @@ NETWORK_NAME := $(if $(NETWORK_NAME),$(NETWORK_NAME),iot-net)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs ps restart bootstrap clean check-env test seed
+.PHONY: help up down logs ps restart bootstrap clean check-env test seed secrets-keycloak logs-keycloak logs-oauth2-proxy
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*##"; printf "Targets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -48,6 +48,17 @@ test: check-env ## Run API integration tests against the running stack
 
 seed: check-env ## Populate the platform with realistic seed data
 	@python3 platform/scripts/add_test_data.py
+
+secrets-keycloak: ## Print commands to generate the oauth2-proxy cookie secret
+	@echo "# Generate a 32-byte cookie secret for oauth2-proxy and add to platform/.env:"
+	@echo "openssl rand -base64 32 | tr -- '+/' '-_' | tr -d '='"
+	@echo "# Then set OAUTH2_PROXY_COOKIE_SECRET=<output> in platform/.env"
+
+logs-keycloak: check-env ## Tail Keycloak logs
+	$(DC) logs -f --tail=200 keycloak
+
+logs-oauth2-proxy: check-env ## Tail oauth2-proxy logs
+	$(DC) logs -f --tail=200 oauth2-proxy
 
 clean: check-env ## DESTRUCTIVE: stop stack and drop all volumes (requires CONFIRM=1)
 	@if [ "$(CONFIRM)" != "1" ]; then \

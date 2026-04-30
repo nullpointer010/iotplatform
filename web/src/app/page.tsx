@@ -5,10 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Activity, Cpu, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Gate } from "@/components/gate";
+import { useHasRole } from "@/lib/auth";
 import { api } from "@/lib/api";
 
 export default function DashboardPage() {
   const t = useTranslations();
+  const isManager = useHasRole("maintenance_manager");
   const devices = useQuery({
     queryKey: ["devices"],
     queryFn: () => api.listDevices(1000, 0),
@@ -50,7 +53,7 @@ export default function DashboardPage() {
           value={opTypes.isLoading ? "…" : String(opTypes.data?.length ?? 0)}
           subtitle={t("dashboard.opTypesSubtitle")}
           icon={<Wrench className="h-5 w-5" />}
-          href="/maintenance/operation-types"
+          href={isManager ? "/maintenance/operation-types" : undefined}
         />
         <StatCard
           title={t("dashboard.statusCard")}
@@ -95,18 +98,22 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Link
-              href="/devices/new"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              {t("dashboard.registerDevice")}
-            </Link>
-            <Link
-              href="/maintenance/operation-types"
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              {t("dashboard.manageOpTypes")}
-            </Link>
+            <Gate roles={["operator"]}>
+              <Link
+                href="/devices/new"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                {t("dashboard.registerDevice")}
+              </Link>
+            </Gate>
+            <Gate roles={["maintenance_manager"]}>
+              <Link
+                href="/maintenance/operation-types"
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
+              >
+                {t("dashboard.manageOpTypes")}
+              </Link>
+            </Gate>
             <Link
               href="/devices"
               className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"

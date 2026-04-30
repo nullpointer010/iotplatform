@@ -113,17 +113,31 @@ def orion_post(path: str, body: object, expect=(200, 201, 204, 422)) -> tuple[in
 # ---------------------------------------------------------------------------
 
 SITES = [
-    {"site_area": "Finca Norte - Invernadero 1", "latitude": 40.4501, "longitude": -3.7202, "city": "Madrid"},
-    {"site_area": "Finca Norte - Invernadero 2", "latitude": 40.4523, "longitude": -3.7188, "city": "Madrid"},
-    {"site_area": "Finca Sur - Almacén Principal", "latitude": 39.4699, "longitude": -0.3763, "city": "Valencia"},
-    {"site_area": "Finca Sur - Cabezal de Riego", "latitude": 39.4670, "longitude": -0.3781, "city": "Valencia"},
-    {"site_area": "Finca Este - Sala Técnica", "latitude": 41.3851, "longitude": 2.1734, "city": "Barcelona"},
-    {"site_area": "Finca Oeste - Pivote 1", "latitude": 37.3891, "longitude": -5.9845, "city": "Sevilla"},
-    {"site_area": "Finca Oeste - Pivote 2", "latitude": 37.3905, "longitude": -5.9821, "city": "Sevilla"},
-    {"site_area": "Estación Meteorológica Central", "latitude": 38.3452, "longitude": -0.4810, "city": "Alicante"},
+    {"site_area": "IFAPA La Cañada - Invernadero 1",    "latitude": 36.83414, "longitude": -2.40211, "city": "La Cañada"},
+    {"site_area": "IFAPA La Cañada - Invernadero 2",    "latitude": 36.83470, "longitude": -2.40165, "city": "La Cañada"},
+    {"site_area": "IFAPA La Cañada - Cabezal de Riego", "latitude": 36.83380, "longitude": -2.40250, "city": "La Cañada"},
+    {"site_area": "IFAPA La Cañada - Sala Técnica",     "latitude": 36.83440, "longitude": -2.40190, "city": "La Cañada"},
+    {"site_area": "IFAPA La Cañada - Estación Meteo",   "latitude": 36.83505, "longitude": -2.40130, "city": "La Cañada"},
+    {"site_area": "UAL - Finca Experimental Anasol",    "latitude": 36.82750, "longitude": -2.40470, "city": "Almería"},
+    {"site_area": "UAL - Edificio CITE II Lab IoT",     "latitude": 36.82690, "longitude": -2.40580, "city": "Almería"},
+    {"site_area": "UAL - Invernadero Investigación",    "latitude": 36.82820, "longitude": -2.40400, "city": "Almería"},
 ]
 
-OWNERS = ["Juan Pérez", "María García", "Carlos Ruiz", "Ana Sánchez", "Luis Fernández"]
+OWNERS = [
+    "Juan Pérez - IFAPA",
+    "María García - UAL",
+    "Carlos Ruiz - IFAPA",
+    "Ana Sánchez - UAL",
+    "Luis Fernández",
+]
+
+
+def _slug(value: str) -> str:
+    """ASCII-safe lowercase slug for MQTT topic segments."""
+    import unicodedata
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return "".join(c if c.isalnum() else "-" for c in ascii_only.lower()).strip("-")
 MANUFACTURERS = ["Acme Sensors", "Siemens", "Bosch", "Libelium", "Davis Instruments"]
 MODELS = ["S-100", "S-200X", "T-1000", "Vantage Pro", "Plug-Smart-3", "PLC-12-DC"]
 
@@ -205,7 +219,7 @@ def _build_device(n: int) -> dict:
     if category in SENSOR_PROPERTIES:
         payload["controlledProperty"] = SENSOR_PROPERTIES[category]
     if protocol == "mqtt":
-        payload["mqttTopicRoot"] = f"crop/{site['city'].lower()}/dev{n:03d}"
+        payload["mqttTopicRoot"] = f"crop/{_slug(site['city'])}/dev{n:03d}"
         payload["mqttClientId"] = f"seed-{n:03d}"
         payload["mqttQos"] = random.choice([0, 1, 1, 2])
         payload["mqttSecurity"] = {"type": random.choice(["TLS", "none"])}

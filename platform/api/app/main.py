@@ -1,14 +1,17 @@
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
 from alembic import command
 from alembic.config import Config as AlembicConfig
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.db import make_engine, make_sessionmaker
+from app.middleware import RequestIdMiddleware
 from app.orion import OrionClient
 from app.quantumleap import QuantumLeapClient
 from app.routes import devices, health, maintenance, telemetry
@@ -44,6 +47,10 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     app = FastAPI(
         title="CropDataSpace IoT Platform API",
         description="REST API for the CropDataSpace IoT platform.",
@@ -58,6 +65,22 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestIdMiddleware)
+
+    errors_log = logging.getLogger("app.errors")
+
+    @app.exception_handler(Exception)
+    async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+        rid = getattr(request.state, "request_id", "-")
+        errors_log.exception(
+            "Unhandled error %s %s rid=%s", request.method, request.url.path, rid,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "request_id": rid},
+            headers={"X-Request-ID": rid},
+        )
+
     app.include_router(health.router)
     app.include_router(devices.router, prefix=settings.api_prefix)
     app.include_router(telemetry.router, prefix=settings.api_prefix)

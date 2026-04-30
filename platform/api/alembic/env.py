@@ -20,7 +20,7 @@ from app import models_maintenance  # noqa: F401
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def _sync_url() -> str:

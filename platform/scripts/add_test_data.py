@@ -248,6 +248,34 @@ def wipe_seed_data() -> None:
         api_delete(f"/api/v1/maintenance/operation-types/{o['id']}")
     print(f"  removed {len(seed_ops)} seed operation types")
 
+    # Drop every DeviceMeasurement entity in the tenant so we don't leak
+    # readings from earlier seed batches (or from a different URN scheme).
+    status_, body = _request(
+        "GET",
+        f"{ORION_URL}/v2/entities?type=DeviceMeasurement&limit=1000&options=keyValues",
+        headers={
+            "Fiware-Service": FIWARE_SERVICE,
+            "Fiware-ServicePath": FIWARE_SERVICEPATH,
+        },
+    )
+    measurements = json.loads(body) if body else []
+    removed = 0
+    for ent in measurements:
+        try:
+            _request(
+                "DELETE",
+                f"{ORION_URL}/v2/entities/{ent['id']}?type=DeviceMeasurement",
+                headers={
+                    "Fiware-Service": FIWARE_SERVICE,
+                    "Fiware-ServicePath": FIWARE_SERVICEPATH,
+                },
+                expect=(204, 404),
+            )
+            removed += 1
+        except HttpError:
+            pass
+    print(f"  removed {removed} DeviceMeasurement entities")
+
 
 # ---------------------------------------------------------------------------
 # Seed
@@ -332,7 +360,9 @@ def seed_telemetry(devices: list[dict], days: int = 3, per_day: int = 8) -> int:
         device_uuid = d["id"].rsplit(":", 1)[-1]
         for cp in cps:
             unit, lo, hi = UNITS.get(cp, ("", 0.0, 1.0))
-            entity_id = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:{cp}"
+            # Suffix must match the API convention (first letter upper).
+            suffix = cp[:1].upper() + cp[1:]
+            entity_id = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:{suffix}"
             for i in range(days * per_day):
                 ts = now - timedelta(hours=(days * per_day - i) * (24 / per_day))
                 value = round(random.uniform(lo, hi), 2)

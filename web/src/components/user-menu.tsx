@@ -74,12 +74,9 @@ export function UserMenu() {
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() =>
-            toast({
-              title: t("logout"),
-              description: "Authentication will arrive in ticket 0013 (Keycloak).",
-            })
-          }
+          onSelect={() => {
+            window.location.href = "/oauth2/sign_out?rd=/";
+          }}
         >
           <LogOut className="mr-2 h-4 w-4" />
           {t("logout")}

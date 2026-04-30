@@ -46,10 +46,10 @@ against the live `make up` stack.
   create/list/patch/delete log, FK to nonexistent device (404), bad
   operation_type (422).
 
-- [ ] **0006 protocol-extensions** — *(TODO)*
-  Per-type metadata validation: MQTT first, then PLC, then LoRaWAN
-  (split into subtickets if scope grows). Tests covering required-field
-  validation per protocol.
+- [x] **0006 protocol-extensions** — *(DONE)*
+  Per-type metadata validation: MQTT, PLC, LoRaWAN. Cross-protocol field
+  rejection, field-format validation (MQTT topic, IPv4, hex EUIs/AppKey),
+  PATCH cross-validates against merged Orion state.
 
 - [ ] **0007 web-ui-skeleton** — *(TODO)*
   Minimal frontend under top-level `web/`. Stack aligned with

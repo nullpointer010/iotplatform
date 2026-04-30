@@ -7,7 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.deps import OrionDep
 from app.ngsi import from_ngsi, to_ngsi, to_ngsi_attrs
 from app.orion import DuplicateEntity
-from app.schemas import DeviceIn, DeviceUpdate, to_urn
+from app.schemas import (
+    DeviceIn,
+    DeviceUpdate,
+    Protocol,
+    to_urn,
+    validate_protocol_invariants,
+)
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -63,7 +69,31 @@ async def patch_device(
     device_id: str, payload: DeviceUpdate, orion: OrionDep
 ) -> dict:
     eid = _normalise_id_or_400(device_id)
-    attrs = to_ngsi_attrs(payload.model_dump(exclude_none=True))
+    existing = await orion.get_entity(eid)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found",
+        )
+    patch = payload.model_dump(exclude_none=True)
+    merged = {**from_ngsi(existing), **patch}
+    proto_raw = merged.get("supportedProtocol")
+    if proto_raw is not None:
+        try:
+            protocol = Protocol(proto_raw) if not isinstance(proto_raw, Protocol) else proto_raw
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"unknown supportedProtocol '{proto_raw}'",
+            )
+        try:
+            validate_protocol_invariants(merged, protocol)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            )
+    attrs = to_ngsi_attrs(patch)
     ok = await orion.patch_entity(eid, attrs)
     if not ok:
         raise HTTPException(

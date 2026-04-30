@@ -37,13 +37,13 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:4180/oauth2/callback"
+        "http://localhost/oauth2/callback"
       ],
       "webOrigins": [
-        "http://localhost:4180"
+        "http://localhost"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:4180/*"
+        "post.logout.redirect.uris": "http://localhost/*"
       },
       "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
       "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]

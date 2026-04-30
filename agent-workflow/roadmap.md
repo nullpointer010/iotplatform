@@ -123,6 +123,14 @@ i18n via `next-intl` (`es` default, `en` available).
   front of the Next.js app, public client `iot-web`. Local dev,
   `localhost`-bound, no TLS. UI itself unchanged.
 
+- [x] **0013b single-origin-edge** — *(done 2026-04-30)*
+  oauth2-proxy becomes the only host-facing port (`:80`) and proxies
+  both `/api/*` to the FastAPI container and `/*` to the Next.js dev
+  server. `iot-api` no longer publishes a host port; same-origin
+  fetches replace cross-origin CORS plumbing. Single `WEB_PORT`
+  override; rolls in the `OAUTH2_PROXY_OIDC_AUDIENCE_CLAIMS=azp`
+  hot-fix discovered during 0013 smoke-testing.
+
 - [ ] **0014 backend-jwt-rbac** — *(spec, TODO)*
   FastAPI validates JWTs against Keycloak's JWKS, exposes a
   `require_roles(*roles)` dependency, applies RBAC per `backend.md` to

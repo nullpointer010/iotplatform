@@ -23,8 +23,8 @@ services:
       - ../api/alembic.ini:/app/alembic.ini
       - ../api/tests:/app/tests
       - ../api/pytest.ini:/app/pytest.ini
-    ports:
-      - "${API_PORT}:8000"
+    expose:
+      - "8000"
     depends_on:
       - orion
       - quantumleap

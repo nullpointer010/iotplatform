@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     quantumleap_url: str = "http://quantumleap:8668"
     database_url: str = "postgresql+asyncpg://iot_user:iot_password@postgres:5432/iot_database"
-    cors_allow_origins: str = "http://localhost:3000"
+    cors_allow_origins: str = ""
 
 
 @lru_cache

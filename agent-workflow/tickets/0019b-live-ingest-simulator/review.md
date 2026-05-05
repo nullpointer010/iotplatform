@@ -3,54 +3,63 @@
 ## What changed
 
 New:
-- `platform/api/app/simulator.py` — `LiveSimulator` background task
-  that auto-creates 5 demo devices in Orion (3 MQTT + 2 HTTP) and
-  publishes realistic random-walk telemetry through both real
-  ingestion paths.
+- `platform/api/app/simulator.py` — `LiveSimulator` background task.
+  Each tick walks all devices in Orion and:
+  - publishes MQTT for `mqtt` devices (real paho client),
+  - HTTP-POSTs for `http` devices via real loopback to
+    `/api/v1/devices/{id}/telemetry`,
+  - flips other-protocol devices to `deviceState=maintenance`
+    (one-shot PATCH).
+  Also deletes legacy `[demo] …` entities created by the v1 of
+  this module.
 
 Modified:
 - `platform/api/app/main.py` — start/stop simulator from lifespan,
   pass it the MQTT bridge so it can `refresh()` after bootstrap.
-- `platform/api/app/config.py` — `simulator_enabled` (default off),
-  `simulator_interval_seconds` (default 10), `simulator_api_base_url`
-  (default `http://localhost:8000`).
-- `platform/compose/docker-compose.api.yml` — new env vars,
-  `SIMULATOR_ENABLED` defaults to `true` for `make up`.
+- `platform/api/app/config.py` — `simulator_enabled` (default off
+  in Settings), `simulator_interval_seconds` (default 10),
+  `simulator_api_base_url` (default `http://localhost:8000`).
+- `platform/compose/docker-compose.api.yml` — `SIMULATOR_ENABLED`
+  defaults to `true` for `make up`.
 
 ## Acceptance criteria — evidence
 
-- **A.1** `make up` then `curl /v2/entities?q=name~=demo` returns
-  exactly 5 entities.
-- **A.2** `[demo] MQTT sensor 1` shows live `temperature`,
-  `humidity`, `dateLastValueReported` within ~10 s.
-- **A.3** `[demo] HTTP sensor 4` likewise; the row in
-  `device_ingest_keys` for it has `created_by='simulator'`.
-- **A.4** `GET /v2/entities/urn:ngsi-ld:DeviceMeasurement:<uuid>:Temperature/attrs/numValue?lastN=5`
-  on QuantumLeap returns ≥ 2 entries within ~30 s.
-- **A.5** `make test` → 182 passed, 1 pre-existing flake unrelated.
-- **A.6** Code path `_ensure_http_key` early-returns when
-  `existing.created_by != "simulator"`.
+- **A.1** Simulator never calls `create_entity`. Verified: device
+  count after `make up` matches whatever was in Orion before.
+- **A.2** After 30 s, all 30 MQTT/HTTP devices in the seed fleet
+  show a fresh `dateLastValueReported`.
+- **A.3** Code path: `_ensure_http_key` only inserts/rotates rows
+  when `existing is None or existing.created_by == "simulator"`;
+  otherwise the device is added to `_http_skip` and ignored.
+- **A.4** All 22 lorawan/plc/modbus devices end up in
+  `deviceState=maintenance`. One-shot via `_maintenance_done` set.
+- **A.5** `make test` → 183/183 passed.
+- **A.6** Legacy `[demo] …` URNs deleted at startup. Verified
+  count = 0.
 
 ## Follow-ups
 
-- **FU1** Cover other transports (LoRaWAN webhook, CoAP) once those
-  ingestion adapters land.
-- **FU2** Optional `/system/simulator` endpoint to start/stop or set
-  the interval at runtime — only if it actually helps demos.
-- **FU3** Consider a `make demo` target that boots the stack with
-  `SIMULATOR_ENABLED=true` and `make seed`, and a `make ci` that
-  forces it off, instead of relying on the compose default.
+- **FU1** Native ingestion adapters for LoRaWAN (Chirpstack/TTN
+  webhook → `apply_measurement`), CoAP, Sigfox. Once an adapter
+  lands, drop the protocol from the maintenance-set in this file.
+- **FU2** Optional `/system/simulator` endpoint to start/stop /
+  set the interval at runtime, only if it actually helps demos.
+- **FU3** Consider gating `make test` to set `SIMULATOR_ENABLED=false`
+  in the test container env, to remove residual concurrency between
+  the simulator and integration tests.
+- **FU4** When 0020 ships the `dataTypes` editor, pick a richer
+  set of `controlledProperty` values (windSpeed, soilMoisture,
+  pressure, …); ranges already in `_RANGES`.
 
 ## Self-review notes
 
-- `_DEMO_NS` UUID was chosen with a "51ed" tail purely for grep-ability;
-  no semantic meaning.
-- `OrionClient.list_entities` is unused — we fetch each demo device
-  individually by URN. Cheaper for 5 known IDs and avoids racing
-  with mid-tick CRUD.
-- The MQTT publisher is a separate paho client from the bridge, with
-  its own client id (`iot-api-simulator`). Mosquitto handles the two
-  client ids fine.
-- Simulator `dataTypes` shape (`{"temperature":"Number"}` flat string)
-  matches what the bridge enforces today. If 0020's `dataTypes` editor
-  changes the wire format, both the editor and this file move together.
+- The simulator never reverts a device to `active`. If the user
+  manually flips a maintenance device to `active`, on the next tick
+  it would be flipped back — but only if it's still on a non-live
+  transport. Acceptable: changing transport is a real operator
+  action and would re-trigger.
+- Random-walk values are independent per `(device, attr)`; they
+  drift but stay bounded. No cross-device correlation.
+- HTTP loopback URL is hard-coded in env to `http://localhost:8000`
+  (the uvicorn bind inside the iot-api container). Outside the
+  container the env var would need to point at the API gateway.

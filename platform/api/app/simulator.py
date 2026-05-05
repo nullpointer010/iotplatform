@@ -1,11 +1,18 @@
 """Live ingest simulator (ticket 0019b).
 
-Auto-creates a small fleet of demo devices in Orion and continuously
-publishes realistic measurements through both real ingestion paths
-(MQTT broker + HTTP /telemetry endpoint), so a freshly-started stack
-shows live data in the UI without any extra command.
+For every registered device, continuously publishes realistic
+measurements through the device's declared protocol:
 
-Off by default. Enabled in compose via ``SIMULATOR_ENABLED=true``.
+- ``mqtt`` → real ``paho.publish`` to the platform broker; the
+  bridge consumes it and runs the canonical writer.
+- ``http`` → real ``POST /api/v1/devices/{id}/telemetry`` with a
+  per-device ``X-Device-Key`` (auto-issued on first need).
+- anything else (``lorawan``, ``plc``, ``modbus``, ``coap`` …) →
+  forced to ``deviceState="maintenance"`` once. We don't have an
+  ingestion adapter for those yet.
+
+Off by default in `Settings`. Enabled in compose so `make up` shows
+live data without any extra command.
 """
 from __future__ import annotations
 
@@ -27,72 +34,39 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.config import Settings
 from app.models_ingest_keys import DeviceIngestKey
 from app.mqtt_bridge import MqttBridge
-from app.ngsi import from_ngsi, to_ngsi
-from app.orion import DuplicateEntity, OrionClient
+from app.ngsi import from_ngsi
+from app.orion import OrionClient
 
 log = logging.getLogger("app.simulator")
 
-# Stable namespace for demo device URNs (UUIDv5).
-_DEMO_NS = uuid.UUID("00000000-0000-0000-0000-0000000051ed")
-_DEMO_NAME_PREFIX = "[demo] "
-
-# Per-attribute clamp + random-walk step.
+# Per-attribute clamp + random-walk step. Mirrors `add_test_data.py`.
 _RANGES: dict[str, tuple[float, float, float]] = {
     "temperature": (18.0, 30.0, 0.4),
     "humidity": (30.0, 90.0, 1.5),
+    "windSpeed": (0.0, 12.0, 0.6),
+    "rainfall": (0.0, 4.0, 0.2),
+    "pressure": (1.0, 5.0, 0.1),
+    "soilMoisture": (10.0, 60.0, 1.0),
+    "luminosity": (0.0, 100000.0, 5000.0),
 }
 
+# Default attrs to publish when a device declares no `controlledProperty`.
+_DEFAULT_ATTRS = ("temperature", "humidity")
 
-def _demo_urn(slug: str) -> str:
-    return f"urn:ngsi-ld:Device:{uuid.uuid5(_DEMO_NS, slug)}"
-
-
-def _is_demo(device_urn: str) -> bool:
-    """Check whether a URN belongs to our demo namespace.
-
-    We re-derive each demo URN once at startup and store the set;
-    this helper only exists for documentation / readability.
-    """
-    return device_urn.startswith("urn:ngsi-ld:Device:")
-
-
-# Layout of the demo fleet. Order matters: the slug feeds UUIDv5.
-_DEMO_LAYOUT: list[dict[str, Any]] = [
-    {"slug": "demo-mqtt-1", "proto": "mqtt", "topic": "demo/sensor-1"},
-    {"slug": "demo-mqtt-2", "proto": "mqtt", "topic": "demo/sensor-2"},
-    {"slug": "demo-mqtt-3", "proto": "mqtt", "topic": "demo/sensor-3"},
-    {"slug": "demo-http-1", "proto": "http", "topic": None},
-    {"slug": "demo-http-2", "proto": "http", "topic": None},
-]
-
-
-def _demo_device_payload(idx: int, spec: dict[str, Any]) -> dict[str, Any]:
-    proto = spec["proto"]
-    label = f"{_DEMO_NAME_PREFIX}{proto.upper()} sensor {idx}"
-    payload: dict[str, Any] = {
-        "id": _demo_urn(spec["slug"]),
-        "name": label,
-        "category": "sensor",
-        "supportedProtocol": proto,
-        "deviceState": "active",
-        "controlledProperty": ["temperature", "humidity"],
-        "manufacturerName": "CropDataSpace Demo",
-        "modelName": "demo-sim-1",
-        "serialNumber": f"DEMO-{idx:03d}",
-        "owner": ["simulator"],
-    }
-    if proto == "mqtt":
-        payload["mqttTopicRoot"] = spec["topic"]
-        payload["mqttClientId"] = spec["slug"]
-        payload["dataTypes"] = {
-            "temperature": "Number",
-            "humidity": "Number",
-        }
-    return payload
+# URNs of demo devices created by an earlier version of this module.
+# Kept around so `make up` after an upgrade cleans them up.
+_LEGACY_DEMO_NS = uuid.UUID("00000000-0000-0000-0000-0000000051ed")
+_LEGACY_DEMO_SLUGS = (
+    "demo-mqtt-1",
+    "demo-mqtt-2",
+    "demo-mqtt-3",
+    "demo-http-1",
+    "demo-http-2",
+)
 
 
 class LiveSimulator:
-    """Background task: ensure demo devices, then pump telemetry."""
+    """Background task: pump realistic telemetry for every device."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -105,12 +79,12 @@ class LiveSimulator:
         self._stop = asyncio.Event()
         # (device_urn, attr) -> current simulated value
         self._values: dict[tuple[str, str], float] = {}
-        # device_urn -> cleartext ingest key (for HTTP demo devices)
+        # device_urn -> cleartext ingest key (HTTP devices)
         self._http_keys: dict[str, str] = {}
-        # device_urn -> True/False (skip if operator owns the key)
+        # device_urn -> True when an operator owns the key (skip).
         self._http_skip: dict[str, bool] = {}
-        # The set of demo URNs we own.
-        self._demo_urns: set[str] = {_demo_urn(s["slug"]) for s in _DEMO_LAYOUT}
+        # device_urn already PATCHed to deviceState=maintenance (one-shot).
+        self._maintenance_done: set[str] = set()
         self._mqtt_lock = threading.Lock()
 
     # ─── lifecycle ─────────────────────────────────────────────────
@@ -127,7 +101,7 @@ class LiveSimulator:
         self._sessionmaker = sessionmaker
         self._bridge = bridge
 
-        # Connect MQTT publisher (separate client from the bridge).
+        # Connect MQTT publisher (separate paho client from the bridge).
         c = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id="iot-api-simulator",
@@ -147,8 +121,10 @@ class LiveSimulator:
         self._mqtt = c
 
         self._task = asyncio.create_task(self._run(), name="simulator")
-        log.info("simulator started (interval=%ss)",
-                 self._settings.simulator_interval_seconds)
+        log.info(
+            "simulator started (interval=%ss)",
+            self._settings.simulator_interval_seconds,
+        )
 
     async def stop(self) -> None:
         self._stop.set()
@@ -178,9 +154,9 @@ class LiveSimulator:
             pass
 
         try:
-            await self._bootstrap_devices()
+            await self._cleanup_legacy_demo_devices()
         except Exception:
-            log.exception("simulator bootstrap failed; will retry next tick")
+            log.exception("simulator legacy cleanup failed")
 
         async with httpx.AsyncClient(timeout=10.0) as http:
             interval = max(1, self._settings.simulator_interval_seconds)
@@ -194,44 +170,46 @@ class LiveSimulator:
                 except asyncio.TimeoutError:
                     pass
 
-    # ─── bootstrap ─────────────────────────────────────────────────
+    # ─── one-time cleanup of older demo entities ──────────────────
 
-    async def _bootstrap_devices(self) -> None:
+    async def _cleanup_legacy_demo_devices(self) -> None:
         assert self._orion is not None
-        for idx, spec in enumerate(_DEMO_LAYOUT, start=1):
-            payload = _demo_device_payload(idx, spec)
-            entity = to_ngsi(payload)
+        for slug in _LEGACY_DEMO_SLUGS:
+            urn = f"urn:ngsi-ld:Device:{uuid.uuid5(_LEGACY_DEMO_NS, slug)}"
             try:
-                await self._orion.create_entity(entity)
-                log.info("simulator created %s (%s)", payload["name"], spec["proto"])
-            except DuplicateEntity:
-                # Re-PATCH the protocol-specific attrs to heal any
-                # schema drift across simulator versions.
-                heal = {k: v for k, v in entity.items() if k not in ("id", "type")}
-                await self._orion.patch_entity(payload["id"], heal)
-        # Make the MQTT bridge pick up our new MQTT-protocol devices.
-        if self._bridge is not None:
-            try:
-                await self._bridge.refresh()
+                deleted = await self._orion.delete_entity(urn)
+                if deleted:
+                    log.info("simulator removed legacy demo %s", urn)
             except Exception:
-                log.exception("simulator bridge refresh failed")
+                log.exception("simulator delete legacy %s failed", urn)
 
-    # ─── tick ──────────────────────────────────────────────────────
+    # ─── tick: walk every device ──────────────────────────────────
 
     async def _tick(self, http: httpx.AsyncClient) -> None:
         assert self._orion is not None
-        # Re-fetch each demo device fresh: protocol/topic can change.
-        for urn in self._demo_urns:
-            ent = await self._orion.get_entity(urn)
-            if ent is None:
-                # Was deleted (e.g. by a test). Re-create on next bootstrap.
-                continue
-            d = from_ngsi(ent)
-            proto = d.get("supportedProtocol")
-            if proto == "mqtt":
-                self._publish_mqtt(d)
-            elif proto == "http":
-                await self._publish_http(http, d)
+        offset = 0
+        page = 1000
+        while not self._stop.is_set():
+            entities = await self._orion.list_entities(limit=page, offset=offset)
+            if not entities:
+                break
+            for raw in entities:
+                d = from_ngsi(raw)
+                proto = d.get("supportedProtocol")
+                if proto == "mqtt":
+                    self._publish_mqtt(d)
+                elif proto == "http":
+                    await self._publish_http(http, d)
+                else:
+                    await self._ensure_maintenance(d)
+            if len(entities) < page:
+                break
+            offset += page
+
+    def _attrs_for(self, d: dict[str, Any]) -> list[str]:
+        cps = d.get("controlledProperty") or []
+        out = [a for a in cps if isinstance(a, str)]
+        return out or list(_DEFAULT_ATTRS)
 
     def _next_value(self, device_urn: str, attr: str) -> float:
         rng = _RANGES.get(attr)
@@ -257,9 +235,7 @@ class LiveSimulator:
         if not isinstance(root, str) or not root:
             return
         root = root.rstrip("/")
-        for attr in d.get("controlledProperty") or []:
-            if not isinstance(attr, str):
-                continue
+        for attr in self._attrs_for(d):
             value = self._next_value(d["id"], attr)
             payload = json.dumps({"value": value})
             with self._mqtt_lock:
@@ -314,9 +290,7 @@ class LiveSimulator:
     async def _publish_http(
         self, http: httpx.AsyncClient, d: dict[str, Any]
     ) -> None:
-        attrs = [
-            a for a in (d.get("controlledProperty") or []) if isinstance(a, str)
-        ]
+        attrs = self._attrs_for(d)
         if not attrs:
             return
         try:
@@ -355,3 +329,26 @@ class LiveSimulator:
                 )
         except httpx.HTTPError as exc:
             log.warning("simulator http error %s: %s", url, exc)
+
+    # ─── non-live protocols → maintenance ─────────────────────────
+
+    async def _ensure_maintenance(self, d: dict[str, Any]) -> None:
+        urn = d["id"]
+        if urn in self._maintenance_done:
+            return
+        if d.get("deviceState") == "maintenance":
+            self._maintenance_done.add(urn)
+            return
+        assert self._orion is not None
+        try:
+            ok = await self._orion.patch_entity(
+                urn, {"deviceState": {"type": "Text", "value": "maintenance"}}
+            )
+            if ok:
+                self._maintenance_done.add(urn)
+                log.info(
+                    "simulator → %s set to maintenance (protocol=%s)",
+                    urn, d.get("supportedProtocol"),
+                )
+        except Exception:
+            log.exception("simulator maintenance PATCH failed for %s", urn)

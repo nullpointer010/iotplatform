@@ -4,59 +4,68 @@
 After 0018/0018b/0019, the platform supports live ingestion via MQTT
 and HTTP, but a freshly-started stack (`make up`) shows nothing
 moving. The user has to manually publish messages or curl the ingest
-endpoint to see telemetry come alive. That's friction for demos and
-ongoing development.
+endpoint to see telemetry come alive. Synthetic seed devices (the
+output of `make seed`) look real but stay silent.
 
 ## Goal
-After `make up`, the stack continuously ingests realistic telemetry
-through **both** real ingestion paths (MQTT broker + HTTP `/telemetry`
-route) without any extra command, so the UI's `/state`, `/telemetry`,
-charts and floorplan overlays show live activity.
+After `make up`, **every registered device** with a live transport
+(MQTT or HTTP) continuously emits realistic telemetry through that
+transport's real ingestion path. Devices on transports we don't
+have an adapter for yet (LoRaWAN, PLC, Modbus, CoAP, …) are flipped
+to `deviceState="maintenance"` so the UI honestly reflects that they
+aren't reporting.
 
 ## In scope
-- 5 demo devices auto-provisioned in Orion at startup (3 MQTT-protocol,
-  2 HTTP-protocol). Idempotent: re-running `make up` does not duplicate.
-- Background task in `iot-api` that publishes a measurement per attribute
-  every ~10 s for each demo device, via the protocol the device declares.
-- MQTT path: real `paho` PUBLISH to Mosquitto using the bridge's
-  credentials. Goes through the existing bridge → canonical writer.
-- HTTP path: real HTTP POST to `http://localhost:8000/api/v1/devices/{id}/telemetry`
-  with a per-device `X-Device-Key`. The simulator owns these keys
-  (`created_by="simulator"`); it never overwrites operator-issued keys.
-- Gated by `SIMULATOR_ENABLED` env var (default `false` in `Settings`,
-  default `true` in compose).
+- A background task in `iot-api`, gated by `SIMULATOR_ENABLED`.
+- For every device with `supportedProtocol == "mqtt"`: publish a
+  random-walk value per `controlledProperty` every ~10 s via paho
+  to Mosquitto. The bridge → canonical writer takes it from there.
+- For every device with `supportedProtocol == "http"`: real HTTP
+  POST to `/api/v1/devices/{id}/telemetry` with a per-device
+  `X-Device-Key` (auto-issued the first time the simulator sees
+  the device; row labelled `created_by="simulator"`).
+- For every device on any other transport: PATCH `deviceState` to
+  `"maintenance"` once at startup. Idempotent.
+- One-time cleanup of legacy demo devices created by an earlier
+  version of this module (`[demo] MQTT/HTTP sensor 1..5`).
 
 ## Out of scope
-- Other transports (PLC, LoRaWAN, Modbus). Skipped with a log line;
-  tracked under the existing roadmap item for protocol simulators.
+- An ingestion adapter for LoRaWAN/PLC/Modbus/CoAP — tracked
+  separately on the roadmap.
 - A user-facing UI to start/stop the simulator.
-- Determinism — values are random walks, not replayable traces.
+- Replayable / deterministic data — values are independent random
+  walks per `(device, attr)`.
 
 ## User stories
-- *As a developer*, when I `make up`, within ~30 s the dashboard shows
-  several devices reporting fresh values that change over time.
+- *As a developer*, when I `make up`, within ~30 s every MQTT and
+  HTTP device on the dashboard shows fresh values that change over
+  time. Devices on other protocols sit visibly in maintenance.
 - *As a tester*, I can disable the simulator (`SIMULATOR_ENABLED=false`)
-  to get a quiet stack for assertions.
+  for a quiet stack.
 
 ## Acceptance criteria
-- A.1 With `SIMULATOR_ENABLED=true`, a fresh stack auto-creates exactly
-  5 demo devices visible in `GET /api/v1/devices`, named `[demo] …`.
-- A.2 Within 30 s of stack-up, `GET /api/v1/devices/{id}/state` for a
-  demo MQTT device shows non-null values and a recent
-  `dateLastValueReported`.
-- A.3 Same for an HTTP demo device, but its `device_ingest_keys` row
-  has `created_by="simulator"`.
-- A.4 `GET /api/v1/devices/{id}/telemetry?controlledProperty=temperature`
-  returns ≥ 2 entries within ~30 s for any demo device.
-- A.5 Existing tests pass unchanged. Simulator is off by default in
-  Settings; tests don't enable it.
-- A.6 Simulator never rotates keys whose `created_by != "simulator"`.
+- A.1 With `SIMULATOR_ENABLED=true`, the simulator does **not**
+  create any device of its own — the device list comes from
+  whatever's already in Orion (incl. `make seed`).
+- A.2 Within 30 s of stack-up, every MQTT/HTTP device with a
+  matching `mqttTopicRoot`/protocol has a non-null
+  `dateLastValueReported` and at least one `controlledProperty`
+  value populated.
+- A.3 For every HTTP device the simulator publishes against, a
+  `device_ingest_keys` row exists with `created_by="simulator"`.
+  An operator-issued key (any other `created_by`) is never
+  overwritten.
+- A.4 Devices whose `supportedProtocol` is neither `mqtt` nor
+  `http` end up at `deviceState="maintenance"` (one-shot PATCH).
+- A.5 Existing tests pass. Simulator is off by default in `Settings`.
+- A.6 The legacy `[demo] …` devices created by the previous
+  version of this module are removed at startup.
 
 ## Resolved decisions
-- In-process inside `iot-api`, not a separate container. One less moving
-  part; reuses `OrionClient`, sessionmaker, and lifespan.
-- Demo devices use a fixed UUIDv5 namespace so re-runs of `make up`
-  hit the same URNs (idempotent).
-- HTTP path uses real loopback HTTP (`httpx → localhost:8000`), not a
-  direct call to `apply_measurement`, so the actual route + auth +
-  validation are exercised continuously.
+- In-process inside `iot-api`. Reuses `OrionClient`, sessionmaker,
+  and lifespan. No extra container.
+- HTTP path uses real loopback HTTP, not a direct call to
+  `apply_measurement`, so the actual route + auth + validation are
+  exercised continuously.
+- The simulator does not create or seed devices — that's `make seed`'s
+  job. The simulator only animates whatever is registered.

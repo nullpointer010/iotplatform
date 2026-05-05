@@ -201,11 +201,6 @@
     "to": "To",
     "exportCsv": "Export CSV",
     "rawTable": "Raw table",
-    "custom": {
-      "datePlaceholder": "dd/mm/yyyy",
-      "timePlaceholder": "hh:mm",
-      "invalid": "Invalid date or time"
-    },
     "table": {
       "prev": "Previous",
       "next": "Next",

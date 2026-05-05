@@ -95,6 +95,7 @@ export function MaintenanceLogForm({ deviceId }: Props) {
         <Input
           id="ml-start"
           type="datetime-local"
+          lang="es-ES"
           aria-invalid={form.formState.errors.start_time ? true : undefined}
           {...form.register("start_time")}
         />
@@ -108,6 +109,7 @@ export function MaintenanceLogForm({ deviceId }: Props) {
         <Input
           id="ml-end"
           type="datetime-local"
+          lang="es-ES"
           aria-invalid={form.formState.errors.end_time ? true : undefined}
           {...form.register("end_time")}
         />

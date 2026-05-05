@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { DateTimeInput } from "@/components/ui/datetime-input";
 import { TimeSeriesChart, type TimeSeriesRange } from "@/components/charts/time-series-chart";
 import { api } from "@/lib/api";
 import { paginate, PAGE_SIZE } from "@/lib/paginate";
@@ -43,13 +42,13 @@ function isoMs(ms: number): string {
 
 function rangeWindow(
   range: TimeSeriesRange,
-  customFrom: string | null,
-  customTo: string | null,
+  customFrom: string,
+  customTo: string,
 ): { fromDate?: string; toDate?: string } {
   if (range === "custom") {
     return {
-      fromDate: customFrom ?? undefined,
-      toDate: customTo ?? undefined,
+      fromDate: customFrom ? new Date(customFrom).toISOString() : undefined,
+      toDate: customTo ? new Date(customTo).toISOString() : undefined,
     };
   }
   const ms = RANGES.find((r) => r.key === range)?.ms ?? 24 * 3600 * 1000;
@@ -114,8 +113,8 @@ export function TelemetryTab({
   const [selected, setSelected] = React.useState<string>(properties[0] ?? "");
   const [custom, setCustom] = React.useState<string>("");
   const [range, setRange] = React.useState<TimeSeriesRange>("24h");
-  const [customFrom, setCustomFrom] = React.useState<string | null>(null);
-  const [customTo, setCustomTo] = React.useState<string | null>(null);
+  const [customFrom, setCustomFrom] = React.useState<string>("");
+  const [customTo, setCustomTo] = React.useState<string>("");
   const [tablePage, setTablePage] = React.useState<number>(1);
 
   const cp = selected || custom;
@@ -225,11 +224,21 @@ export function TelemetryTab({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t("telemetry.from")}</Label>
-                <DateTimeInput value={customFrom} onChange={setCustomFrom} />
+                <Input
+                  type="datetime-local"
+                  lang="es-ES"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("telemetry.to")}</Label>
-                <DateTimeInput value={customTo} onChange={setCustomTo} />
+                <Input
+                  type="datetime-local"
+                  lang="es-ES"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                />
               </div>
             </div>
           )}

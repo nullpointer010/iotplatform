@@ -173,7 +173,7 @@ export function DeviceForm(props: Mode) {
 
       <Section title={t("device.section.admin.title")}>
         <FormRow {...f("dateInstalled")} htmlFor="dateInstalled">
-          <Input id="dateInstalled" type="datetime-local" {...form.register("dateInstalled")} />
+          <Input id="dateInstalled" type="datetime-local" lang="es-ES" {...form.register("dateInstalled")} />
         </FormRow>
         <FormRow {...f("owner")} htmlFor="ownerCsv" error={fmt((form.formState.errors.ownerCsv as { message?: string } | undefined)?.message)}>
           <Input id="ownerCsv" placeholder={ph("ownerCsv")} {...inv("ownerCsv")} {...form.register("ownerCsv")} />

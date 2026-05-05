@@ -135,21 +135,23 @@ else is reachable through it as a single origin.
 
 - **MQTT**: `MqttBridge` (in-process, paho thread + asyncio loop)
   subscribes to `<mqttTopicRoot>/+` per MQTT-enabled device, parses
-  the payload, validates against the device's `dataTypes`, and
-  patches the matching attribute on the **`Device:<id>`** entity in
-  Orion. The Orion → QuantumLeap subscription persists those
-  attribute changes to CrateDB as rows of the `Device` entity type.
-- **Known gap (tracked in 0018b)**: `GET /devices/{id}/telemetry`
-  reads QuantumLeap for entities of type **`DeviceMeasurement`** at
-  `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<attr>`, not for
-  `Device` attributes. So a real `mosquitto_pub` moves `/state`
-  (and writes a `Device` row to Crate) but `/telemetry` returns
-  empty. **0018b telemetry-ingest-canonicalization** closes the gap
-  by making every successful publish *also* upsert
-  `DeviceMeasurement` (`numValue`, `dateObserved`, `unitCode`,
-  `refDevice`, `controlledProperty`) and update
-  `dateLastValueReported` on the `Device`. Future ingest paths
-  (HTTP / LoRaWAN webhook from 0019) reuse the same canonical
+  the payload, and validates against the device's `dataTypes`. Each
+  successful publish performs a **dual write** against Orion (closed
+  by 0018b):
+    1. `PATCH Device:<id>` with `{<attr>: ..., dateLastValueReported:
+       <utc-now>}` — what `GET /devices/{id}/state` reads.
+    2. Only when the attribute is `Number`, upsert
+       `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<Attr>` carrying
+       `refDevice`, `controlledProperty`, `numValue`, `dateObserved`
+       (`unitCode` is omitted for now, optional per the data model)
+       — what `GET /devices/{id}/telemetry` reads via QuantumLeap.
+  The upsert pattern is `POST /v2/entities` first, falling back to
+  `POST /v2/entities/<id>/attrs` on duplicate, mirroring
+  `add_test_data.py`. Failures of the measurement upsert are logged
+  at WARNING and never roll back the `Device` patch — `/state`
+  freshness is treated as more critical than telemetry consistency
+  in v1. Future ingest paths (HTTP / LoRaWAN webhook from 0019)
+  will reuse `MqttBridge._upsert_measurement` as the canonical
   writer.
 - **HTTP / LoRaWAN webhook**: not yet implemented (0019).
 - **Seed data**: `platform/scripts/add_test_data.py` (`make seed`)

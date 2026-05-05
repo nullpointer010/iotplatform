@@ -193,3 +193,117 @@ def test_subscription_removed_on_delete(api, orion, mqtt_client, tokens):
     # The entity must remain absent (no autovivification).
     r = api.get(f"/api/v1/devices/{eid}")
     assert r.status_code == 404
+
+
+# ─── ticket 0018b: canonical DeviceMeasurement upsert ────────────────────
+
+
+def _ql_entry_count(api: httpx.Client, eid: str, controlled_property: str) -> int:
+    r = api.get(
+        f"/api/v1/devices/{eid}/telemetry",
+        params={"controlledProperty": controlled_property, "limit": 100},
+    )
+    if r.status_code != 200:
+        return 0
+    return len(r.json().get("entries", []))
+
+
+def test_publish_lands_in_state_and_telemetry(api, orion, created_ids, mqtt_client):
+    """0018b: a numeric MQTT publish must reach /state AND /telemetry."""
+    eid, root = _make_mqtt_device(api, created_ids, {"temperature": "Number"})
+    mqtt_client.publish(
+        f"{root}/temperature", '{"value": 24.7}', qos=0
+    ).wait_for_publish(timeout=2)
+
+    # /state reflects the value and dateLastValueReported is set.
+    state = _wait_until(
+        lambda: (
+            api.get(f"/api/v1/devices/{eid}/state").json()
+            if api.get(f"/api/v1/devices/{eid}/state").status_code == 200
+            and api.get(f"/api/v1/devices/{eid}/state").json().get("attributes", {}).get("temperature", {}).get("value") == 24.7
+            else None
+        ),
+        timeout_s=4.0,
+    )
+    assert state is not None, "/state did not pick up the publish"
+    assert state.get("dateLastValueReported"), "dateLastValueReported missing"
+
+    # /telemetry shows at least one DeviceMeasurement entry.
+    entries = _wait_until(
+        lambda: (
+            api.get(
+                f"/api/v1/devices/{eid}/telemetry",
+                params={"controlledProperty": "temperature", "limit": 10},
+            ).json().get("entries")
+            if api.get(
+                f"/api/v1/devices/{eid}/telemetry",
+                params={"controlledProperty": "temperature", "limit": 10},
+            ).status_code == 200
+            and api.get(
+                f"/api/v1/devices/{eid}/telemetry",
+                params={"controlledProperty": "temperature", "limit": 10},
+            ).json().get("entries")
+            else None
+        ),
+        timeout_s=8.0,
+    )
+    assert entries, "/telemetry did not return the DeviceMeasurement"
+    assert any(e["numValue"] == 24.7 for e in entries)
+
+    # The measurement entity itself must exist in Orion.
+    device_uuid = eid.rsplit(":", 1)[-1]
+    m_urn = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:Temperature"
+    created_ids.append(m_urn)  # ensure cleanup
+    r = orion.get(f"/v2/entities/{m_urn}")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["type"] == "DeviceMeasurement"
+    assert body["refDevice"]["value"] == eid
+    assert body["controlledProperty"]["value"] == "temperature"
+    assert body["numValue"]["value"] == 24.7
+
+
+def test_two_publishes_yield_two_entries(api, orion, created_ids, mqtt_client):
+    """0018b: a second publish must update (not collide on) the entity."""
+    eid, root = _make_mqtt_device(api, created_ids, {"temperature": "Number"})
+    device_uuid = eid.rsplit(":", 1)[-1]
+    m_urn = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:Temperature"
+    created_ids.append(m_urn)
+
+    mqtt_client.publish(
+        f"{root}/temperature", '{"value": 21.1}', qos=0
+    ).wait_for_publish(timeout=2)
+    _wait_until(
+        lambda: _ql_entry_count(api, eid, "temperature") >= 1, timeout_s=8.0
+    )
+    time.sleep(1.2)  # let QL move the time_index forward
+    mqtt_client.publish(
+        f"{root}/temperature", '{"value": 22.2}', qos=0
+    ).wait_for_publish(timeout=2)
+    final = _wait_until(
+        lambda: _ql_entry_count(api, eid, "temperature") >= 2, timeout_s=8.0
+    )
+    assert final, "second publish did not produce a second telemetry entry"
+
+
+def test_boolean_publish_creates_no_measurement(api, orion, created_ids, mqtt_client):
+    """0018b: non-numeric publishes update /state but skip DeviceMeasurement."""
+    eid, root = _make_mqtt_device(api, created_ids, {"door": "Boolean"})
+    mqtt_client.publish(
+        f"{root}/door", '{"value": true}', qos=0
+    ).wait_for_publish(timeout=2)
+    state = _wait_until(
+        lambda: (
+            api.get(f"/api/v1/devices/{eid}/state").json()
+            if api.get(f"/api/v1/devices/{eid}/state").status_code == 200
+            and api.get(f"/api/v1/devices/{eid}/state").json().get("attributes", {}).get("door", {}).get("value") is True
+            else None
+        ),
+        timeout_s=4.0,
+    )
+    assert state is not None, "boolean publish did not reach /state"
+
+    device_uuid = eid.rsplit(":", 1)[-1]
+    m_urn = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:Door"
+    r = orion.get(f"/v2/entities/{m_urn}")
+    assert r.status_code == 404, f"unexpected DeviceMeasurement created: {r.text}"

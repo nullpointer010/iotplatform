@@ -93,9 +93,10 @@ restarting anything.
 - [x] `make test` green.
 - [x] Manual smoke: `mosquitto_pub` → `curl /devices/<id>/state`
       shows the value.
-- [ ] Manual smoke: `mosquitto_pub` → `curl /devices/<id>/telemetry`
-      shows the value. **→ moved to 0018b** (requires
-      `DeviceMeasurement` upsert).
+- [x] Manual smoke: `mosquitto_pub` → `curl /devices/<id>/telemetry`
+      shows the value. **(closed by 0018b — 3 integration tests
+      cover the round-trip; see
+      `tests/test_mqtt_bridge.py::test_publish_lands_in_state_and_telemetry`.)**
 - [x] Update `journal.md` with decisions taken during implementation
       and any deviations from the design. *(Backfilled 2026-05-05 in
       ticket 0018a.)*

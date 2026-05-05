@@ -25,7 +25,7 @@ from app.mqtt_payload import (
     validate_against_dataTypes,
 )
 from app.ngsi import from_ngsi
-from app.orion import OrionClient, OrionError
+from app.orion import DuplicateEntity, OrionClient, OrionError
 
 log = logging.getLogger("app.mqtt")
 
@@ -244,11 +244,61 @@ class MqttBridge:
         self, device_id: str, attr: str, ngsi_type: str, value: Any
     ) -> None:
         assert self._orion is not None
-        attrs = {attr: {"type": ngsi_type, "value": value}}
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat().replace("+00:00", "Z")
+        attrs = {
+            attr: {"type": ngsi_type, "value": value},
+            "dateLastValueReported": {"type": "DateTime", "value": now_iso},
+        }
         try:
             await self._orion.patch_entity(device_id, attrs)
         except OrionError as exc:
             log.warning("MQTT forward orion error device=%s: %s", device_id, exc)
+            return
+        # Canonical telemetry write (ticket 0018b): only numeric values
+        # become DeviceMeasurement entities; Boolean/Text update /state
+        # only. Failures here are logged but do not roll back /state.
+        if ngsi_type == "Number":
+            await self._upsert_measurement(device_id, attr, value, now_iso)
+
+    async def _upsert_measurement(
+        self, device_urn: str, attr: str, value: Any, ts_iso: str
+    ) -> None:
+        assert self._orion is not None
+        device_uuid = device_urn.rsplit(":", 1)[-1]
+        suffix = attr[:1].upper() + attr[1:]
+        measurement_urn = f"urn:ngsi-ld:DeviceMeasurement:{device_uuid}:{suffix}"
+        body = {
+            "id": measurement_urn,
+            "type": "DeviceMeasurement",
+            "refDevice": {"type": "Text", "value": device_urn},
+            "controlledProperty": {"type": "Text", "value": attr},
+            "numValue": {"type": "Number", "value": value},
+            "dateObserved": {"type": "DateTime", "value": ts_iso},
+        }
+        try:
+            await self._orion.create_entity(body)
+        except DuplicateEntity:
+            try:
+                await self._orion.patch_entity(
+                    measurement_urn,
+                    {
+                        "numValue": {"type": "Number", "value": value},
+                        "dateObserved": {"type": "DateTime", "value": ts_iso},
+                    },
+                )
+            except OrionError as exc:
+                log.warning(
+                    "MQTT measurement patch failed entity=%s: %s",
+                    measurement_urn,
+                    exc,
+                )
+        except OrionError as exc:
+            log.warning(
+                "MQTT measurement create failed entity=%s: %s",
+                measurement_urn,
+                exc,
+            )
 
     def _drop(self, reason: str, topic: str, detail: str) -> None:
         with self._lock:

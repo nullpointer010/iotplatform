@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FieldLabel } from "@/components/forms/field-label";
+import { DataTypesEditor } from "@/components/forms/data-types-editor";
 import { api } from "@/lib/api";
 import {
   CATEGORY,
@@ -200,6 +201,24 @@ export function DeviceForm(props: Mode) {
           </FormRow>
           <FormRow {...f("mqttQos")} htmlFor="mqttQos" error={form.formState.errors.mqttQos?.message}>
             <Input id="mqttQos" type="number" min={0} max={2} {...inv("mqttQos")} {...form.register("mqttQos")} />
+          </FormRow>
+          <FormRow label={t("dataTypes.title")} htmlFor="dataTypes">
+            <Controller
+              name="dataTypesJson"
+              control={form.control}
+              render={({ field }) => (
+                <DataTypesEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  availableProperties={
+                    (form.watch("controlledProperty") ?? "")
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  }
+                />
+              )}
+            />
           </FormRow>
           <FormRow {...f("mqttSecurity")} htmlFor="mqttSecurityJson">
             <Textarea id="mqttSecurityJson" placeholder={ph("mqttSecurityJson")} {...form.register("mqttSecurityJson")} />

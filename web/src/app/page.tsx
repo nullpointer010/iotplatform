@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Activity, Cpu, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gate } from "@/components/gate";
+import { RecentMeasurements } from "@/components/dashboard/recent-measurements";
 import { useHasRole } from "@/lib/auth";
 import { api } from "@/lib/api";
 
@@ -123,6 +124,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <RecentMeasurements devices={list} />
     </div>
   );
 }

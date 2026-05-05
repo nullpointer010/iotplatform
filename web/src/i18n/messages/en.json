@@ -41,7 +41,9 @@
     "byProtocolEmpty": "No devices registered",
     "quickActions": "Quick actions",
     "registerDevice": "Register a device",
-    "manageOpTypes": "Manage operation types"
+    "manageOpTypes": "Manage operation types",
+    "recentTitle": "Latest measurements",
+    "recentEmpty": "No live measurements yet."
   },
   "map": {
     "view": {
@@ -65,6 +67,7 @@
     "deleteConfirmDesc": "This action cannot be undone. The device and its maintenance history will be removed.",
     "tab": {
       "overview": "Overview",
+      "state": "State",
       "telemetry": "Telemetry",
       "maintenance": "Maintenance"
     },
@@ -187,7 +190,41 @@
   },
   "telemetry": {
     "emptyTitle": "No data",
-    "emptyHint": "No measurements have been received for this device in the selected range."
+    "emptyHint": "No measurements have been received for this device in the selected range.",
+    "range": {
+      "24h": "24 h",
+      "7d": "7 d",
+      "30d": "30 d",
+      "custom": "Custom"
+    },
+    "from": "From",
+    "to": "To",
+    "exportCsv": "Export CSV",
+    "rawTable": "Raw table"
+  },
+  "state": {
+    "emptyTitle": "No live data",
+    "emptyHint": "This device has not reported any measurement yet.",
+    "updatedAgo": "updated {ago}",
+    "lastReport": "Last report",
+    "battery": "Battery",
+    "deviceState": "State",
+    "sparklineHint": "Last hour"
+  },
+  "freshness": {
+    "fresh": "Fresh",
+    "stale": "Stale",
+    "noData": "No data"
+  },
+  "dataTypes": {
+    "title": "Payload types",
+    "hint": "Declare which controlled property is Number vs Text. Used by the MQTT bridge to validate payloads.",
+    "property": "Property",
+    "type": "Type",
+    "addRow": "Add property",
+    "remove": "Remove",
+    "duplicate": "Property already declared",
+    "empty": "No types declared"
   },
   "manuals": {
     "tab": "Manuals",

@@ -81,6 +81,18 @@ export interface TelemetryResponse {
   entries: TelemetryEntry[];
 }
 
+export interface DeviceStateAttribute {
+  type: string;
+  value: unknown;
+}
+
+export interface DeviceStateDTO {
+  deviceState?: DeviceState;
+  dateLastValueReported?: string;
+  batteryLevel?: number;
+  attributes?: Record<string, DeviceStateAttribute>;
+}
+
 export interface OperationType {
   id: string;
   name: string;

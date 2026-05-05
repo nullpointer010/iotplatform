@@ -230,7 +230,7 @@ close the loop (alerts, commands), then operability and docs.
   `make up` (+ optionally `make seed`) → live data in `/state` and
   `/telemetry` for the entire fleet, with zero extra commands.
 
-- [ ] **0020 device-live-state-and-charts** — *(Phase 2)*
+- [x] **0020 device-live-state-and-charts** — *(Phase 2, done 2026-05-05)*
   Three tightly-coupled deliverables, all on top of the endpoints
   shipped in 0004 and the canonical ingest from 0018b:
   1. **Estado tab** on the device detail page: current value per

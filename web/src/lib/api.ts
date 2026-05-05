@@ -2,6 +2,7 @@ import type {
   Device,
   DeviceCreate,
   DeviceManual,
+  DeviceStateDTO,
   DeviceUpdate,
   Floorplan,
   MaintenanceLog,
@@ -120,6 +121,9 @@ export const api = {
       `/devices/${encodeURIComponent(id)}/telemetry?${q.toString()}`,
     );
   },
+
+  getState: (id: string) =>
+    request<DeviceStateDTO>(`/devices/${encodeURIComponent(id)}/state`),
 
   // ----- operation types -----
   listOperationTypes: () =>

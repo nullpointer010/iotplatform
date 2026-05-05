@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gate } from "@/components/gate";
 import { api } from "@/lib/api";
 import { OverviewTab } from "./overview-tab";
+import { StateTab } from "./state-tab";
 import { TelemetryTab } from "./telemetry-tab";
 import { MaintenanceTab } from "./maintenance-tab";
 import { ManualsTab } from "./manuals-tab";
@@ -67,12 +68,16 @@ export default function DeviceDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="state">State</TabsTrigger>
           <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="manuals">Manuals</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab device={device.data} />
+        </TabsContent>
+        <TabsContent value="state">
+          <StateTab deviceId={device.data.id} device={device.data} />
         </TabsContent>
         <TabsContent value="telemetry">
           <TelemetryTab deviceId={device.data.id} device={device.data} />

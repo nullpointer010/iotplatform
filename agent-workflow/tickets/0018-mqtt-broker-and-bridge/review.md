@@ -43,3 +43,13 @@
 - 0027 backups-and-restore — Mosquitto persistence dir needs to be in
   the backup set.
 - 0028 prod-edge-tls — TLS + per-device ACLs on Mosquitto.
+
+## 2026-05-05 reconciliation note (ticket 0018a)
+
+The acceptance-criteria table above is accurate for what 0018 explicitly
+contracted. However, an *implicit* promise — *"a publish appears in
+`/api/v1/devices/{id}/telemetry`"* — was **not** met: the bridge
+patches the `Device` entity, while `/telemetry` queries
+`DeviceMeasurement` entities. The gap is now tracked as **0018b
+telemetry-ingest-canonicalization** (Phase 2 blocker) and recorded as a
+`memory/gotchas.md` entry.

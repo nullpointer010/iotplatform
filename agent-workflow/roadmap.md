@@ -85,6 +85,27 @@ Auth approach mirrors the CropDataSpace reference at
 gymnastics; oauth2-proxy and Keycloak both bound to `localhost`.
 i18n via `next-intl` (`es` default, `en` available).
 
+### Re-plan (2026-05-05) — workflow/docs reconciliation (0018a)
+
+Audit revealed three drifts: ticket 0018 closed with an empty
+`tasks.md`, the roadmap still listed it as TODO, and `architecture.md`
+was frozen at ticket 0001. A fourth, runtime drift surfaced in the
+process: the MQTT bridge updates the `Device` entity, but `/telemetry`
+reads `DeviceMeasurement` entities — so a real `mosquitto_pub` moves
+`/state` but does not appear in `/telemetry`. Ticket **0018a**
+reconciles the docs (this entry, the 0018 paper trail, and
+`architecture.md`) and files **0018b
+telemetry-ingest-canonicalization** as the new Phase 2 blocker.
+During the same audit the user-supplied scope notes were absorbed
+into the existing 0019–0029 entries (no renumbering): a `dataTypes`
+editor in the device form's MQTT section and a real "Estado" tab
+(freshness + sparkline) join 0020; the full alert catalog (no-data,
+threshold, delta, stuck, battery, RSSI, payload errors, overdue
+maintenance) and the Postgres-as-truth / optional Orion mirror
+clarification join 0022; sensor onboarding (credentials, topic,
+sample `mosquitto_pub`, payload-test) joins 0029; the embedded PDF
+viewer becomes new ticket **0029b**; four creative ideas live in a
+new "Phase 2 stretch — creative" subsection.
 - [x] **0009 almeria-seed-context** — *(done 2026-04-30)*
   Replaced the generic Spanish `SITES` list in
   `platform/scripts/add_test_data.py` with 8 IFAPA La Cañada + UAL
@@ -166,13 +187,27 @@ Ordering rationale: ingestion first (without it nothing else means
 anything), then make the data visible (charts, live overlay), then
 close the loop (alerts, commands), then operability and docs.
 
-- [ ] **0018 mqtt-broker-and-bridge** — *(Phase 2, blocker)*
-  Add Eclipse Mosquitto to the Compose stack (auth via password file,
-  no TLS in dev) and a Python `mqtt-bridge` worker inside `iot-api`
-  that subscribes per-device to `mqttTopicRoot/+` and forwards each
-  JSON message into Orion (which fan-outs to QL → Crate as today).
-  Validates the payload against the device's `dataTypes` map. Tests
-  use `paho-mqtt` to publish and assert a CrateDB row appears.
+- [x] **0018 mqtt-broker-and-bridge** — *(done 2026-05-01; partial)*
+  Eclipse Mosquitto in Compose (password-file auth, no TLS, loopback
+  only), in-process `MqttBridge` worker inside `iot-api` subscribing
+  to `<mqttTopicRoot>/+` per MQTT-enabled device, payload validation
+  against `dataTypes`, `GET /api/v1/system/mqtt` admin stats, and 16
+  unit + 7 integration tests. **What did not ship:** the bridge
+  patches the `Device` entity, so `/state` updates but
+  `/telemetry` (which reads `DeviceMeasurement`) stays empty. That
+  promise moves to 0018b.
+
+- [ ] **0018b telemetry-ingest-canonicalization** — *(Phase 2, blocker)*
+  Make the MQTT bridge canonical against the data model pinned in
+  0002. On every successful publish, in addition to patching
+  `Device:<id>` (state + `dateLastValueReported`), upsert
+  `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<attr>` with
+  `numValue`, `dateObserved`, `unitCode`, `refDevice` and
+  `controlledProperty`. Reuse the existing `dataTypes` validation;
+  do not re-architect the bridge. Verifiable: a real `mosquitto_pub`
+  moves both `/state` *and*
+  `/telemetry?controlledProperty=<attr>`. 0019 (HTTP/LoRaWAN ingest)
+  is written to reuse the same canonical writer.
 
 - [ ] **0019 http-ingest-endpoint** — *(Phase 2)*
   `POST /api/v1/devices/{id}/telemetry` with a small JSON body, for
@@ -180,13 +215,27 @@ close the loop (alerts, commands), then operability and docs.
   Validated against `dataTypes`. Auth via a service-account JWT or a
   per-device static API key (new `device_ingest_keys` table) — kept
   off the user-RBAC ladder so a sensor never needs a Keycloak account.
+  Reuses the canonical `DeviceMeasurement` writer introduced in
+  0018b (no second ingestion shape).
 
 - [ ] **0020 device-live-state-and-charts** — *(Phase 2)*
-  Device detail "Estado" tab consumes `/state` and shows the current
-  attribute values; "Telemetría" tab gets a real time-series chart
-  (Recharts) over the last 24 h / 7 d / 30 d. Dashboard adds a
-  "Últimas medidas" card per site. No new endpoints — uses the ones
-  we shipped in 0004.
+  Three tightly-coupled deliverables, all on top of the endpoints
+  shipped in 0004 and the canonical ingest from 0018b:
+  1. **Estado tab** on the device detail page: current value per
+     attribute, `dateObserved` timestamp, freshness badge
+     ("sin datos desde X") and a 1 h / 24 h sparkline. Polling every
+     5–30 s; WebSocket/SSE deferred to a follow-up.
+  2. **Telemetría tab**: real time-series with **Recharts** over
+     24 h / 7 d / 30 d, attribute selector, unit display, **CSV
+     export**. uPlot is reserved for a later perf ticket if profiling
+     justifies it.
+  3. **`dataTypes` editor** in the MQTT section of the device form
+     (`web/src/components/devices/device-form.tsx`). Today the field
+     is converted to/from JSON in code but not exposed to the user;
+     without it, payload validation is impossible to configure from
+     the UI.
+  Dashboard also gets a "Últimas medidas" card per site. No new
+  endpoints.
 
 - [ ] **0021 floorplan-live-overlay** — *(Phase 2)*
   On `/sites/[siteArea]`, fetch each placed device's last value and
@@ -195,13 +244,28 @@ close the loop (alerts, commands), then operability and docs.
   "stale" pill if `> N min` since last sample. Reuses 0017 placements.
 
 - [ ] **0022 alerts-and-rules** — *(Phase 2)*
-  Per-device threshold rules (`attr`, `min`, `max`, `stale_after_s`)
-  in Postgres. A small evaluator (cron-style task inside `iot-api`)
-  raises rows in `alerts(device_id, rule_id, opened_at, closed_at,
-  ack_by)`. Web inbox at `/alerts` and a per-device alert badge.
-  RBAC: viewer reads, operator acks, manager configures rules,
-  delete = admin. Notifications limited to in-app for now (webhook /
-  email deferred to a follow-up).
+  Per-device threshold rules in Postgres. Rules, events, ack,
+  closure, severity and audit **live in Postgres** (not in Orion);
+  Orion remains the current-context source. Optionally mirror
+  `alertStatus` and `activeAlertCount` onto the `Device` entity in
+  Orion so other FIWARE consumers see the same signal. A small
+  evaluator runs **in-process** inside `iot-api` for v1
+  (extraction to a worker container is a later ticket if needed),
+  raising rows in `alerts(device_id, rule_id, opened_at, closed_at,
+  ack_by, severity)`. Built-in rule catalog (configurable per
+  device/attribute):
+    - **no-data-for-X-minutes** (per device/attribute);
+    - **threshold** (e.g. `temperature > 35`, `humidity < 40`);
+    - **abrupt delta** (e.g. Δ`temperature` > N °C in 10 min);
+    - **stuck sensor** (no variance for N hours);
+    - **low battery**;
+    - **low RSSI / SNR**;
+    - **payload errors** (sustained `dropped_invalid` rate);
+    - **overdue maintenance** / **device too long in maintenance**.
+  Web inbox at `/alerts` and a per-device alert badge. RBAC: viewer
+  reads, operator acks, manager configures rules, delete = admin.
+  Notifications limited to in-app for now (webhook / email deferred
+  to a follow-up).
 
 - [ ] **0023 actuator-commands** — *(Phase 2)*
   UI + endpoint to send a write command: MQTT publish on the device's
@@ -223,8 +287,9 @@ close the loop (alerts, commands), then operability and docs.
 - [ ] **0026 system-health-page** — *(Phase 2)*
   `GET /api/v1/system/health` aggregates a ping per upstream (Orion,
   QuantumLeap, CrateDB, Postgres, Mosquitto, Keycloak) with latency
-  and a coarse status. Admin-only `/system` page. Replaces the
-  current single `/healthz`.
+  and a coarse status. Admin-only `/system` page. **Replaces** the
+  current single `/healthz` as the operability surface. The existing
+  `/system/mqtt` from 0018 stays as a finer-grained drill-down.
 
 - [ ] **0027 backups-and-restore** — *(Phase 2)*
   `make backup` snapshots Postgres + Mongo (Orion) + Crate + the
@@ -238,11 +303,24 @@ close the loop (alerts, commands), then operability and docs.
   env-or-file. New `make up-prod` target. Still single-host; HA and
   Kubernetes are Phase 3.
 
-- [ ] **0029 operator-handbook** — *(Phase 2)*
-  End-user docs under `docs/`: "onboard an MQTT sensor", "create a
-  maintenance plan", "configure an alert", "interpret the floor plan".
-  Linked from `README.md`. Spanish primary, English secondary
-  (matches the i18n direction).
+- [ ] **0029 sensor-onboarding-and-handbook** — *(Phase 2)*
+  Reduce friction to attach a real sensor: a guided **MQTT sensor
+  onboarding** flow in the UI that, given a device, surfaces the
+  bridge credentials, the per-attribute topic, a copy-paste
+  `mosquitto_pub` example with a sample JSON payload, and a
+  payload-test console that shows the parsed value, the inferred
+  NGSI type and any `dataTypes` validation error before going live.
+  Plus end-user docs under `docs/`: "onboard an MQTT sensor",
+  "create a maintenance plan", "configure an alert", "interpret
+  the floor plan". Linked from `README.md`. Spanish primary,
+  English secondary (matches the i18n direction).
+
+- [ ] **0029b embedded-pdf-viewer** — *(Phase 2)*
+  Replace the `target="_blank"` jump in
+  `web/src/components/devices/manuals-tab.tsx` with an in-platform
+  PDF viewer (e.g. `<iframe>` against the existing inline-download
+  endpoint from 0016, or `react-pdf` if a richer reader is needed).
+  No new backend; the viewer reuses the manuals API.
 
 ### Phase 2 stretch (only if time permits)
 
@@ -252,6 +330,27 @@ close the loop (alerts, commands), then operability and docs.
 - [ ] **0031 plc-modbus-bridge** — Equivalent of 0018 but for Modbus
   TCP, polling at `plcReadFrequency` and mapping `plcTagsMapping` →
   Orion attributes.
+
+### Phase 2 stretch — creative (un-numbered, captured 2026-05-05)
+
+Ideas surfaced during the 0018a audit. Not scheduled; recorded so
+they are not lost when the corresponding base ticket lands.
+
+- **Live-coloured greenhouse map** — extend the 0021 floor-plan
+  overlay with per-marker colour by `temperature` / `humidity` /
+  staleness / open-alert severity. Natural extension of 0021 once
+  0020 charts are in.
+- **24 h timeline replay** over the floor plan — scrubber that
+  re-plays the last N hours of telemetry on top of the same overlay.
+  Builds on 0020 (time-series query) + 0021 (overlay).
+- **Sensor health score** — a 0–100 score per device combining
+  freshness, battery, noise, outlier rate and maintenance state.
+  Surfaced as a column on the devices list and a badge on the
+  detail page. Builds on 0022 (alert signals).
+- **Event annotations on charts** — user-marked events
+  ("abrimos ventanas", "riego", "tratamiento") rendered as vertical
+  guides on the 0020 charts so the impact on the time-series is
+  visible. Storage in Postgres alongside alerts.
 
 ## Phase 3+ — Later
 

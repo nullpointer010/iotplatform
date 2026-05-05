@@ -74,3 +74,23 @@ TOKEN=$(curl -s -X POST 'http://localhost:8081/realms/iot-platform/protocol/open
 curl -s -H "Authorization: Bearer $TOKEN" http://localhost/api/v1/system/mqtt
 # → {"connected":true,"subscribed_topics":N,"last_message_at":...,"dropped_invalid":0}
 ```
+
+## 2026-05-05 — Reconciliation (ticket 0018a)
+
+- The 2026-05-01 close left `tasks.md` unticked and the roadmap entry
+  still marked TODO. Backfilled `tasks.md` against the actual code in
+  `main`. Roadmap entry flipped to `[x]` in 0018a with the
+  "what shipped / what did not" caveat.
+- **Gap discovered:** the bridge calls
+  `OrionClient.patch_entity(<Device>, attrs)` against the `Device`
+  entity, but `GET /api/v1/devices/{id}/telemetry` reads QuantumLeap
+  for entities of type `DeviceMeasurement` at
+  `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<attr>`
+  (`platform/api/app/routes/telemetry.py:76-79` vs
+  `platform/api/app/mqtt_bridge.py:249`). A real `mosquitto_pub`
+  therefore moves `/state` and writes a `Device` row to CrateDB but
+  `/telemetry` returns empty. The "publish appears in `/telemetry`"
+  smoke check is reassigned to **0018b
+  telemetry-ingest-canonicalization**.
+- Added the trap to `agent-workflow/memory/gotchas.md` so future
+  ingestion paths (HTTP, LoRaWAN webhook) do not repeat it.

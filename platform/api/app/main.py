@@ -16,6 +16,7 @@ from app.middleware import RequestIdMiddleware
 from app.mqtt_bridge import MqttBridge
 from app.orion import OrionClient
 from app.quantumleap import QuantumLeapClient
+from app.simulator import LiveSimulator
 from app.routes import (
     devices,
     floorplans,
@@ -60,9 +61,27 @@ async def lifespan(app: FastAPI):
                 logging.getLogger("app.mqtt").exception("MQTT bridge failed to start")
                 bridge = None
         app.state.mqtt_bridge = bridge
+        simulator: LiveSimulator | None = None
+        if settings.simulator_enabled:
+            simulator = LiveSimulator(settings)
+            try:
+                await simulator.start(
+                    asyncio.get_running_loop(),
+                    app.state.orion,
+                    app.state.sessionmaker,
+                    bridge,
+                )
+            except Exception:
+                logging.getLogger("app.simulator").exception(
+                    "simulator failed to start"
+                )
+                simulator = None
+        app.state.simulator = simulator
         try:
             yield
         finally:
+            if simulator is not None:
+                await simulator.stop()
             if bridge is not None:
                 await bridge.stop()
             await engine.dispose()

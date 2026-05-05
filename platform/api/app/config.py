@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     mqtt_max_payload_bytes: int = 65536
     mqtt_enabled: bool = True
 
+    # Live ingest simulator (ticket 0019b). Off by default; enabled
+    # in compose so `make up` shows live data without extra steps.
+    simulator_enabled: bool = False
+    simulator_interval_seconds: int = 10
+    simulator_api_base_url: str = "http://localhost:8000"
+
 
 @lru_cache
 def get_settings() -> Settings:

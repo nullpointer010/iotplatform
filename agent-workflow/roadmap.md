@@ -218,6 +218,16 @@ close the loop (alerts, commands), then operability and docs.
   Reuses the canonical `DeviceMeasurement` writer introduced in
   0018b (no second ingestion shape).
 
+- [x] **0019b live-ingest-simulator** — *(Phase 2)*  *(done 2026-05-05)*
+  In-process background task in `iot-api`, gated by `SIMULATOR_ENABLED`
+  (default true in compose). Auto-creates 5 demo devices in Orion
+  (3 MQTT + 2 HTTP), then publishes realistic random-walk
+  `temperature` / `humidity` every ~10 s through the **real**
+  ingestion paths: paho `PUBLISH` to Mosquitto for MQTT devices,
+  HTTP `POST /telemetry` with `X-Device-Key` for HTTP devices.
+  Result: `make up` → live data in `/state` and `/telemetry` with
+  zero extra commands.
+
 - [ ] **0020 device-live-state-and-charts** — *(Phase 2)*
   Three tightly-coupled deliverables, all on top of the endpoints
   shipped in 0004 and the canonical ingest from 0018b:

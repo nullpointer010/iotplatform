@@ -24,8 +24,10 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DateTimeInput } from "@/components/ui/datetime-input";
 import { TimeSeriesChart, type TimeSeriesRange } from "@/components/charts/time-series-chart";
 import { api } from "@/lib/api";
+import { paginate, PAGE_SIZE } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 import type { Device } from "@/lib/types";
 
@@ -41,13 +43,13 @@ function isoMs(ms: number): string {
 
 function rangeWindow(
   range: TimeSeriesRange,
-  customFrom: string,
-  customTo: string,
+  customFrom: string | null,
+  customTo: string | null,
 ): { fromDate?: string; toDate?: string } {
   if (range === "custom") {
     return {
-      fromDate: customFrom ? new Date(customFrom).toISOString() : undefined,
-      toDate: customTo ? new Date(customTo).toISOString() : undefined,
+      fromDate: customFrom ?? undefined,
+      toDate: customTo ?? undefined,
     };
   }
   const ms = RANGES.find((r) => r.key === range)?.ms ?? 24 * 3600 * 1000;
@@ -112,10 +114,15 @@ export function TelemetryTab({
   const [selected, setSelected] = React.useState<string>(properties[0] ?? "");
   const [custom, setCustom] = React.useState<string>("");
   const [range, setRange] = React.useState<TimeSeriesRange>("24h");
-  const [customFrom, setCustomFrom] = React.useState<string>("");
-  const [customTo, setCustomTo] = React.useState<string>("");
+  const [customFrom, setCustomFrom] = React.useState<string | null>(null);
+  const [customTo, setCustomTo] = React.useState<string | null>(null);
+  const [tablePage, setTablePage] = React.useState<number>(1);
 
   const cp = selected || custom;
+  // Reset table pagination whenever the dataset changes.
+  React.useEffect(() => {
+    setTablePage(1);
+  }, [cp, range, customFrom, customTo]);
   // Memoize so the queryKey is stable across renders. `rangeWindow`
   // calls Date.now() for the non-custom ranges; without memoization
   // the key changes every render and react-query keeps refetching
@@ -218,19 +225,11 @@ export function TelemetryTab({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t("telemetry.from")}</Label>
-                <Input
-                  type="datetime-local"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                />
+                <DateTimeInput value={customFrom} onChange={setCustomFrom} />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("telemetry.to")}</Label>
-                <Input
-                  type="datetime-local"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                />
+                <DateTimeInput value={customTo} onChange={setCustomTo} />
               </div>
             </div>
           )}
@@ -266,31 +265,65 @@ export function TelemetryTab({
           <summary className="cursor-pointer px-4 py-2 text-sm font-medium">
             {t("telemetry.rawTable")}
           </summary>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Unit</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...entries]
-                .sort((a, b) => b.dateObserved.localeCompare(a.dateObserved))
-                .map((e, i) => (
-                  <TableRow key={`${e.dateObserved}-${i}`}>
-                    <TableCell
-                      className="font-mono text-xs"
-                      title={e.dateObserved}
-                    >
-                      {format(new Date(e.dateObserved), "yyyy-MM-dd HH:mm:ss")}
-                    </TableCell>
-                    <TableCell>{e.numValue}</TableCell>
-                    <TableCell>{e.unitCode ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+          {(() => {
+            const sorted = [...entries].sort((a, b) =>
+              b.dateObserved.localeCompare(a.dateObserved),
+            );
+            const page = paginate(sorted, tablePage, PAGE_SIZE);
+            return (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Unit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {page.items.map((e, i) => (
+                      <TableRow key={`${e.dateObserved}-${i}`}>
+                        <TableCell
+                          className="font-mono text-xs"
+                          title={e.dateObserved}
+                        >
+                          {format(new Date(e.dateObserved), "yyyy-MM-dd HH:mm:ss")}
+                        </TableCell>
+                        <TableCell>{e.numValue}</TableCell>
+                        <TableCell>{e.unitCode ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTablePage((p) => p - 1)}
+                    disabled={page.page <= 1}
+                  >
+                    {t("telemetry.table.prev")}
+                  </Button>
+                  <span className="text-muted-foreground">
+                    {t("telemetry.table.pageOf", {
+                      page: page.page,
+                      total: page.totalPages,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTablePage((p) => p + 1)}
+                    disabled={page.page >= page.totalPages}
+                  >
+                    {t("telemetry.table.next")}
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
         </details>
       )}
     </div>

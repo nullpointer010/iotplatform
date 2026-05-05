@@ -57,7 +57,7 @@ async def get_telemetry(
     fromDate: datetime | None = None,
     toDate: datetime | None = None,
     lastN: Annotated[int | None, Query(ge=1, le=1000)] = None,
-    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> TelemetryResponse:
     if fromDate and toDate and fromDate > toDate:
@@ -74,6 +74,11 @@ async def get_telemetry(
         )
 
     measurement_urn = _measurement_urn(device_urn, controlledProperty)
+    # When the caller asks for `lastN`, omit `limit` so QuantumLeap
+    # uses `lastN` alone and returns the last N entries; passing both
+    # produces inconsistent ordering. The route's default `limit=100`
+    # was previously forwarded alongside `lastN=1000`, capping the
+    # response to 100. See ticket 0021a.
     payload = await ql.query_entity(
         measurement_urn,
         type_="DeviceMeasurement",
@@ -81,7 +86,7 @@ async def get_telemetry(
         from_date=_to_iso(fromDate),
         to_date=_to_iso(toDate),
         last_n=lastN,
-        limit=limit,
+        limit=None if lastN is not None else limit,
         offset=offset,
     )
 

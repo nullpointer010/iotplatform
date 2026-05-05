@@ -255,6 +255,13 @@ close the loop (alerts, commands), then operability and docs.
   numeric badge for the primary `controlledProperty`). 30 s polling,
   "stale" pill if `> N min` since last sample. Reuses 0017 placements.
 
+- [x] **0021a telemetry-pagination-and-date-format** — *(Phase 2 fix, done 2026-05-05)*
+  Telemetry GET capped at 100 even with `lastN=1000` (forwarded
+  `limit` overrode `lastN`). Custom range used native
+  `<input type=datetime-local>` whose format follows browser/OS
+  locale. Fixed both, plus added 100/page client-side pagination
+  for the raw-data table.
+
 - [ ] **0022 alerts-and-rules** — *(Phase 2)*
   Per-device threshold rules in Postgres. Rules, events, ack,
   closure, severity and audit **live in Postgres** (not in Orion);

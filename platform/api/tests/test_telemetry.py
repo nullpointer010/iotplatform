@@ -141,6 +141,39 @@ def test_query_invalid_controlled_property_returns_422(api, created_ids):
     assert r.status_code == 422
 
 
+def test_query_lastN_not_capped_by_default_limit(api, orion, ql, created_ids):
+    """Regression for ticket 0021a.
+
+    The FE asks for ``lastN=1000``; the route must forward a matching
+    ``limit`` to QuantumLeap so QL doesn't silently cap the response
+    at the route's default ``limit=100``.
+    """
+    uid = _create_device(api, created_ids)
+    base = datetime(2026, 4, 30, 16, 0, 0, tzinfo=timezone.utc)
+    measurement_urn = None
+    count = 105
+    for i in range(count):
+        measurement_urn = push_measurement(
+            orion,
+            device_uuid=uid,
+            controlled_property="pressure",
+            num_value=1000.0 + i,
+            date_observed=_iso(base + timedelta(seconds=i)),
+            unit_code="HPA",
+        )
+    assert measurement_urn is not None
+    created_ids.append(measurement_urn)
+    wait_for_ql(ql, measurement_urn, expected_count=count, timeout_s=20.0)
+
+    r = api.get(
+        f"{DEVICES}/{uid}/telemetry",
+        params={"controlledProperty": "pressure", "lastN": 1000},
+    )
+    assert r.status_code == 200, r.text
+    entries = r.json()["entries"]
+    assert len(entries) == count
+
+
 # ---------- state ----------
 
 

@@ -200,7 +200,17 @@
     "from": "Desde",
     "to": "Hasta",
     "exportCsv": "Exportar CSV",
-    "rawTable": "Tabla en bruto"
+    "rawTable": "Tabla en bruto",
+    "custom": {
+      "datePlaceholder": "dd/mm/aaaa",
+      "timePlaceholder": "hh:mm",
+      "invalid": "Fecha u hora no válida"
+    },
+    "table": {
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "pageOf": "Página {page} de {total}"
+    }
   },
   "state": {
     "emptyTitle": "Sin datos en vivo",

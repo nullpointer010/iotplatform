@@ -20,6 +20,7 @@ from app.routes import (
     devices,
     floorplans,
     health,
+    ingest,
     maintenance,
     manuals,
     me,
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(me.router, prefix=settings.api_prefix)
     app.include_router(devices.router, prefix=settings.api_prefix)
     app.include_router(telemetry.router, prefix=settings.api_prefix)
+    app.include_router(ingest.router, prefix=settings.api_prefix)
     app.include_router(maintenance.router, prefix=settings.api_prefix)
     app.include_router(manuals.router, prefix=settings.api_prefix)
     app.include_router(floorplans.router, prefix=settings.api_prefix)

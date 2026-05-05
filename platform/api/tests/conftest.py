@@ -118,6 +118,7 @@ def pg_clean() -> Iterator[None]:
         with conn.cursor() as cur:
             cur.execute(
                 "TRUNCATE device_placements, site_floorplans, device_manuals, "
+                "device_ingest_keys, "
                 "maintenance_log, maintenance_operation_types "
                 "RESTART IDENTITY CASCADE"
             )

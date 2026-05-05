@@ -8,6 +8,7 @@ from sqlalchemy import delete
 
 from app.deps import OrionDep, SessionDep
 from app.auth import require_roles
+from app.models_ingest_keys import DeviceIngestKey
 from app.models_maintenance import MaintenanceLog
 from app.ngsi import from_ngsi, to_ngsi, to_ngsi_attrs
 from app.orion import DuplicateEntity
@@ -159,6 +160,9 @@ async def delete_device(
     device_uuid = UUID(eid.rsplit(":", 1)[-1])
     await session.execute(
         delete(MaintenanceLog).where(MaintenanceLog.device_id == device_uuid)
+    )
+    await session.execute(
+        delete(DeviceIngestKey).where(DeviceIngestKey.device_id == device_uuid)
     )
     await session.commit()
     _maybe_refresh_bridge(request)

@@ -18,6 +18,7 @@ from app.db import Base
 from app import models_maintenance  # noqa: F401
 from app import models_manuals  # noqa: F401
 from app import models_floorplans  # noqa: F401
+from app import models_ingest_keys  # noqa: F401
 
 config = context.config
 

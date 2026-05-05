@@ -100,6 +100,12 @@ else is reachable through it as a single origin.
   - `GET /devices/{id}/state`, `GET /devices/{id}/telemetry`
     (current state via Orion; history via QuantumLeap from
     `DeviceMeasurement` entities).
+  - `POST /devices/{id}/telemetry` — HTTP/LoRaWAN ingest;
+    `X-Device-Key` header (no Keycloak). Single or batch body;
+    runs `dataTypes` validation; canonical writer in `app.ingest`
+    (per 0019).
+  - `POST/DELETE /devices/{id}/ingest-key` — issue / rotate / revoke
+    the per-device API key (operator / admin) (per 0019).
   - `GET/POST/PATCH/DELETE /devices/{id}/maintenance/log`,
     `/maintenance/log/{id}`,
     `/maintenance/operation-types[...]`.
@@ -133,27 +139,45 @@ else is reachable through it as a single origin.
 
 ## Ingestion (current state, 2026-05-05)
 
-- **MQTT**: `MqttBridge` (in-process, paho thread + asyncio loop)
-  subscribes to `<mqttTopicRoot>/+` per MQTT-enabled device, parses
-  the payload, and validates against the device's `dataTypes`. Each
-  successful publish performs a **dual write** against Orion (closed
-  by 0018b):
-    1. `PATCH Device:<id>` with `{<attr>: ..., dateLastValueReported:
-       <utc-now>}` — what `GET /devices/{id}/state` reads.
-    2. Only when the attribute is `Number`, upsert
-       `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<Attr>` carrying
-       `refDevice`, `controlledProperty`, `numValue`, `dateObserved`
-       (`unitCode` is omitted for now, optional per the data model)
-       — what `GET /devices/{id}/telemetry` reads via QuantumLeap.
-  The upsert pattern is `POST /v2/entities` first, falling back to
-  `POST /v2/entities/<id>/attrs` on duplicate, mirroring
-  `add_test_data.py`. Failures of the measurement upsert are logged
-  at WARNING and never roll back the `Device` patch — `/state`
-  freshness is treated as more critical than telemetry consistency
-  in v1. Future ingest paths (HTTP / LoRaWAN webhook from 0019)
-  will reuse `MqttBridge._upsert_measurement` as the canonical
-  writer.
-- **HTTP / LoRaWAN webhook**: not yet implemented (0019).
+The canonical writer lives in `app/ingest.py::apply_measurement`
+(extracted from the MQTT bridge in 0019). Both ingest paths below
+call it, so a value that arrives over MQTT and a value that arrives
+over HTTP land in the exact same shape:
+
+  1. `PATCH Device:<id>` with `{<attr>: ..., dateLastValueReported:
+     <ts>}` — what `GET /devices/{id}/state` reads.
+  2. Only when the attribute is numeric, upsert
+     `urn:ngsi-ld:DeviceMeasurement:<deviceUuid>:<Attr>` carrying
+     `refDevice`, `controlledProperty`, `numValue`, `dateObserved`,
+     and an optional `unitCode` — what
+     `GET /devices/{id}/telemetry` reads via QuantumLeap.
+The upsert is `POST /v2/entities` first, falling back to
+`POST /v2/entities/<id>/attrs` on duplicate. Failures of the
+measurement upsert are logged at WARNING and never roll back the
+`Device` patch — `/state` freshness is treated as more critical than
+telemetry consistency in v1.
+
+- **MQTT** (0018, refactored in 0019): `MqttBridge` (in-process,
+  paho thread + asyncio loop) subscribes to `<mqttTopicRoot>/+` per
+  MQTT-enabled device, parses the payload, validates against the
+  device's `dataTypes`, and delegates to `apply_measurement`. Auth
+  is broker-level (Mosquitto password file).
+- **HTTP / LoRaWAN webhook** (0019):
+  `POST /api/v1/devices/{id}/telemetry` with header
+  `X-Device-Key: <cleartext>`. Body is either single
+  (`{controlledProperty, value, ts?, unitCode?}`) or batch
+  (`{measurements: [...]}`, ≤ 100). The same `dataTypes` validation
+  runs, then each entry calls `apply_measurement`. Per-entry `ts`
+  is honoured as `dateObserved`; otherwise UTC now. The whole batch
+  is rejected on any single validation error (no partial writes).
+- **Ingest auth** (0019): off the user-RBAC ladder. A per-device
+  random key is hashed (SHA-256) into Postgres
+  `device_ingest_keys(device_id PK, key_hash, prefix, …)`. Issue /
+  rotate via `POST /devices/{id}/ingest-key` (operator role; the
+  cleartext key is returned only by this call). Revoke via
+  `DELETE /devices/{id}/ingest-key` (admin). Header check uses
+  `hmac.compare_digest`. Sensors and webhook gateways do **not**
+  need a Keycloak account.
 - **Seed data**: `platform/scripts/add_test_data.py` (`make seed`)
   pushes synthetic telemetry directly through Orion → QL so the UI
   has data without needing real sensors.

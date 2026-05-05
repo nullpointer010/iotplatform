@@ -197,7 +197,7 @@ close the loop (alerts, commands), then operability and docs.
   `/telemetry` (which reads `DeviceMeasurement`) stays empty. That
   promise moves to 0018b.
 
-- [ ] **0018b telemetry-ingest-canonicalization** — *(Phase 2, blocker)*
+- [x] **0018b telemetry-ingest-canonicalization** — *(Phase 2, blocker)*  *(done 2026-05-05)*
   Make the MQTT bridge canonical against the data model pinned in
   0002. On every successful publish, in addition to patching
   `Device:<id>` (state + `dateLastValueReported`), upsert
@@ -209,7 +209,7 @@ close the loop (alerts, commands), then operability and docs.
   `/telemetry?controlledProperty=<attr>`. 0019 (HTTP/LoRaWAN ingest)
   is written to reuse the same canonical writer.
 
-- [ ] **0019 http-ingest-endpoint** — *(Phase 2)*
+- [x] **0019 http-ingest-endpoint** — *(Phase 2)*  *(done 2026-05-05)*
   `POST /api/v1/devices/{id}/telemetry` with a small JSON body, for
   HTTP-only sensors and LoRaWAN webhook bridges (Chirpstack / TTN).
   Validated against `dataTypes`. Auth via a service-account JWT or a

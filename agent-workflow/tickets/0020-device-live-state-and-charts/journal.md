@@ -49,3 +49,35 @@ endpoints. No backend changes.
 - `npm run lint`: clean.
 - `npm test` (web): 17 passed.
 - `make test` (api): 183 passed.
+
+## 2026-05-05 — Post-merge fixes
+
+User-driven smoke (T20) revealed three issues; all fixed in the
+same ticket since they were direct regressions of A.4–A.5 and A.2:
+
+1. **24h/7d/30d stuck on "Cargando…"**: `rangeWindow` was called
+   inline in the render body, so `Date.now()` produced a new
+   `fromDate`/`toDate` on every render, mutating the
+   react-query `queryKey` and triggering an infinite refetch.
+   Wrapped in `useMemo([range, customFrom, customTo])`.
+2. **Raw table showed UTC while chart showed local** (and used
+   12h AM/PM via `toLocaleString()`): switched the table cell to
+   date-fns `yyyy-MM-dd HH:mm:ss` (24h, local). Original UTC ISO
+   preserved in the cell `title` tooltip. Sorted descending so
+   newest is on top, matching the chart's right edge.
+3. **CSV column drift**: kept the canonical `dateObserved` ISO and
+   added a `localTime` column (`yyyy-MM-dd HH:mm:ss`) so the
+   spreadsheet view matches the on-screen chart. New header:
+   `dateObserved,localTime,numValue,unitCode`. Test updated.
+
+Latent bug found during the audit and fixed:
+- `state-tab.tsx::unitOf` looked up
+  `device.dataTypes[attr].unitCode`, but `DataTypesEditor`
+  serialises plain strings (`"Number"` / `"Text"`); the property
+  branch was dead and the unit never appeared on Estado cards.
+  Removed `unitOf` and pulled `unitCode` from the sparkline's
+  telemetry response (`entries[0].unitCode`), which is the same
+  source the chart uses.
+
+Verified again: `tsc --noEmit` clean, `npm run lint` clean,
+`npm test` 17/17.

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,10 +58,11 @@ function rangeWindow(
 export function buildCsv(
   entries: { dateObserved: string; numValue: number; unitCode?: string | null }[],
 ): string {
-  const rows = ["dateObserved,numValue,unitCode"];
+  const rows = ["dateObserved,localTime,numValue,unitCode"];
   for (const e of entries) {
+    const local = format(new Date(e.dateObserved), "yyyy-MM-dd HH:mm:ss");
     rows.push(
-      `${e.dateObserved},${e.numValue},${e.unitCode ?? ""}`,
+      `${e.dateObserved},${local},${e.numValue},${e.unitCode ?? ""}`,
     );
   }
   return rows.join("\n");
@@ -114,7 +116,14 @@ export function TelemetryTab({
   const [customTo, setCustomTo] = React.useState<string>("");
 
   const cp = selected || custom;
-  const window = rangeWindow(range, customFrom, customTo);
+  // Memoize so the queryKey is stable across renders. `rangeWindow`
+  // calls Date.now() for the non-custom ranges; without memoization
+  // the key changes every render and react-query keeps refetching
+  // (the tab gets stuck on "Cargando…").
+  const window = React.useMemo(
+    () => rangeWindow(range, customFrom, customTo),
+    [range, customFrom, customTo],
+  );
 
   const tele = useQuery({
     queryKey: ["telemetry", deviceId, cp, range, window.fromDate, window.toDate],
@@ -266,13 +275,20 @@ export function TelemetryTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e, i) => (
-                <TableRow key={`${e.dateObserved}-${i}`}>
-                  <TableCell className="font-mono text-xs">{e.dateObserved}</TableCell>
-                  <TableCell>{e.numValue}</TableCell>
-                  <TableCell>{e.unitCode ?? "—"}</TableCell>
-                </TableRow>
-              ))}
+              {[...entries]
+                .sort((a, b) => b.dateObserved.localeCompare(a.dateObserved))
+                .map((e, i) => (
+                  <TableRow key={`${e.dateObserved}-${i}`}>
+                    <TableCell
+                      className="font-mono text-xs"
+                      title={e.dateObserved}
+                    >
+                      {format(new Date(e.dateObserved), "yyyy-MM-dd HH:mm:ss")}
+                    </TableCell>
+                    <TableCell>{e.numValue}</TableCell>
+                    <TableCell>{e.unitCode ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </details>

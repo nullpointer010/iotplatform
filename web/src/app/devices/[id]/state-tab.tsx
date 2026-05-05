@@ -17,15 +17,6 @@ import type { Device, DeviceStateAttribute } from "@/lib/types";
 const STATE_POLL_MS = 15_000;
 const SPARK_POLL_MS = 60_000;
 
-function unitOf(device: Device, attr: string): string | undefined {
-  const dt = device.dataTypes?.[attr];
-  if (dt && typeof dt === "object" && "unitCode" in dt) {
-    const u = (dt as { unitCode?: unknown }).unitCode;
-    if (typeof u === "string") return u;
-  }
-  return undefined;
-}
-
 function isNumberAttr(device: Device, attr: string, raw: unknown): boolean {
   const declared = device.dataTypes?.[attr];
   if (typeof declared === "string") return declared === "Number";
@@ -125,7 +116,6 @@ export function StateTab({
                 attr={attr}
                 value={raw}
                 numeric={numeric}
-                unit={unitOf(device, attr)}
                 deviceId={deviceId}
                 lastSeenIso={data?.dateLastValueReported}
                 dfLocale={dfLocale}
@@ -142,7 +132,6 @@ function AttrCard({
   attr,
   value,
   numeric,
-  unit,
   deviceId,
   lastSeenIso,
   dfLocale,
@@ -150,7 +139,6 @@ function AttrCard({
   attr: string;
   value: unknown;
   numeric: boolean;
-  unit?: string;
   deviceId: string;
   lastSeenIso?: string;
   dfLocale: Locale;
@@ -168,6 +156,7 @@ function AttrCard({
     .map((e) => ({ t: new Date(e.dateObserved).getTime(), v: e.numValue }))
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v))
     .sort((a, b) => a.t - b.t);
+  const unit = sparkQ.data?.entries?.[0]?.unitCode ?? undefined;
 
   const last = points[points.length - 1];
   const lastIso = last

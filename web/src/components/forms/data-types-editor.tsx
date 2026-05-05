@@ -68,7 +68,7 @@ export function DataTypesEditor({
 
   const update = (next: Row[]) => {
     setRows(next);
-    const ser = serialize(next);
+    const ser = serializeDataTypes(next);
     lastSerializedRef.current = ser;
     onChange(ser);
   };

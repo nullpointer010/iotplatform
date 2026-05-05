@@ -270,7 +270,20 @@
     "unplacedDevices": "Sin colocar",
     "unplacedHint": "Arrastra un dispositivo desde aquí al plano para colocarlo.",
     "removePlacement": "Quitar del plano",
-    "saveFailed": "No se pudo guardar la posición"
+    "saveFailed": "No se pudo guardar la posición",
+    "overlay": {
+      "tooltipState": "Estado",
+      "tooltipProperty": "Propiedad",
+      "tooltipUpdated": "Actualizado",
+      "tooltipNoSamples": "Sin muestras todavía",
+      "legendStale": "Sin datos recientes",
+      "deviceState": {
+        "active": "Activo",
+        "maintenance": "Mantenimiento",
+        "inactive": "Inactivo",
+        "unknown": "Desconocido"
+      }
+    }
   },
   "zod": {
     "required": "Campo obligatorio",

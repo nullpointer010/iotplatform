@@ -270,7 +270,20 @@
     "unplacedDevices": "Unplaced",
     "unplacedHint": "Drag a device from here onto the plan to place it.",
     "removePlacement": "Remove from plan",
-    "saveFailed": "Could not save position"
+    "saveFailed": "Could not save position",
+    "overlay": {
+      "tooltipState": "State",
+      "tooltipProperty": "Property",
+      "tooltipUpdated": "Updated",
+      "tooltipNoSamples": "No samples yet",
+      "legendStale": "Stale",
+      "deviceState": {
+        "active": "Active",
+        "maintenance": "Maintenance",
+        "inactive": "Inactive",
+        "unknown": "Unknown"
+      }
+    }
   },
   "zod": {
     "required": "Required field",

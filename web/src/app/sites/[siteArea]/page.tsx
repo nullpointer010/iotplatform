@@ -15,6 +15,8 @@ import { api } from "@/lib/api";
 import { useMutateWithToast } from "@/lib/mutate";
 import { toast } from "@/components/ui/use-toast";
 import type { Placement } from "@/lib/types";
+import { LiveMarker } from "./live-marker";
+import { useLiveOverlay } from "./use-live-overlay";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -99,6 +101,7 @@ export default function SiteFloorplanPage() {
   const unplaced = (placements.data ?? []).filter(
     (p) => p.x_pct === null || p.y_pct === null,
   );
+  const liveByDevice = useLiveOverlay(siteArea, placed);
 
   // Drag state: which device id is being dragged. Used to also pick up an
   // already-placed marker and re-position it.
@@ -175,35 +178,31 @@ export default function SiteFloorplanPage() {
 
       {hasPlan && planUrl ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-          <div
-            className="relative overflow-hidden rounded-lg border bg-muted/20"
-            onDragOver={onPlanDragOver}
-            onDrop={onPlanDrop}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={planUrl}
-              alt={siteArea}
-              className="block w-full select-none"
-              draggable={false}
-            />
-            {placed.map((p) => (
-              <button
-                key={p.device_id}
-                type="button"
-                draggable
-                onDragStart={() => setDragId(p.device_id)}
-                onDragEnd={() => setDragId(null)}
-                style={{
-                  left: `${p.x_pct}%`,
-                  top: `${p.y_pct}%`,
-                }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow hover:scale-110"
-                title={p.name ?? p.device_id}
-              >
-                {p.name ?? "•"}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div
+              className="relative overflow-hidden rounded-lg border bg-muted/20"
+              onDragOver={onPlanDragOver}
+              onDrop={onPlanDrop}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={planUrl}
+                alt={siteArea}
+                className="block w-full select-none"
+                draggable={false}
+              />
+              {placed.map((p) => (
+                <LiveMarker
+                  key={p.device_id}
+                  placement={p}
+                  live={liveByDevice.get(p.device_id)}
+                  draggable
+                  onDragStart={() => setDragId(p.device_id)}
+                  onDragEnd={() => setDragId(null)}
+                />
+              ))}
+            </div>
+            <OverlayLegend />
           </div>
           <aside className="space-y-3">
             <h2 className="text-sm font-semibold">
@@ -276,6 +275,40 @@ export default function SiteFloorplanPage() {
           description={t("noPlanHint")}
         />
       )}
+    </div>
+  );
+}
+
+function OverlayLegend() {
+  const t = useTranslations("sites");
+  const items: { dot: string; label: string }[] = [
+    {
+      dot: "bg-emerald-500 border-background",
+      label: t("overlay.deviceState.active"),
+    },
+    {
+      dot: "bg-amber-500 border-background",
+      label: t("overlay.deviceState.maintenance"),
+    },
+    {
+      dot: "bg-muted border-background",
+      label: t("overlay.deviceState.inactive"),
+    },
+    {
+      dot: "bg-emerald-200/40 border-dashed border-emerald-700/50",
+      label: t("overlay.legendStale"),
+    },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      {items.map((it) => (
+        <span key={it.label} className="inline-flex items-center gap-1.5">
+          <span
+            className={`inline-block size-3 rounded-full border-2 ${it.dot}`}
+          />
+          {it.label}
+        </span>
+      ))}
     </div>
   );
 }

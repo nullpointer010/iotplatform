@@ -35,3 +35,5 @@ class PlacementOut(BaseModel):
     name: str | None
     x_pct: float | None
     y_pct: float | None
+    device_state: str | None = None
+    primary_property: str | None = None

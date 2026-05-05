@@ -64,6 +64,24 @@ def _site_area_of(device: dict) -> str | None:
     return None
 
 
+def _device_state_of(device: dict) -> str | None:
+    """Return the device's `deviceState` value as a plain string, if any."""
+    s = device.get("deviceState")
+    if isinstance(s, str) and s.strip():
+        return s
+    return None
+
+
+def _primary_property_of(device: dict) -> str | None:
+    """First entry of the device's `controlledProperty` list, if any."""
+    cp = device.get("controlledProperty")
+    if isinstance(cp, list) and cp:
+        first = cp[0]
+        if isinstance(first, str) and first.strip():
+            return first
+    return None
+
+
 # ---------- /sites ----------
 
 
@@ -205,6 +223,8 @@ async def list_placements(
                 name=d.get("name"),
                 x_pct=p.x_pct if p else None,
                 y_pct=p.y_pct if p else None,
+                device_state=_device_state_of(d),
+                primary_property=_primary_property_of(d),
             )
         )
     return out
@@ -248,12 +268,14 @@ async def upsert_placement(
         row.updated_at = _f.now()  # type: ignore[assignment]
     await session.commit()
     await session.refresh(row)
-    name = from_ngsi(entity).get("name")
+    parsed = from_ngsi(entity)
     return PlacementOut(
         device_id=row.device_id,
-        name=name,
+        name=parsed.get("name"),
         x_pct=row.x_pct,
         y_pct=row.y_pct,
+        device_state=_device_state_of(parsed),
+        primary_property=_primary_property_of(parsed),
     )
 
 

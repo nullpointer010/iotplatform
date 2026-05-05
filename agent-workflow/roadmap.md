@@ -249,7 +249,7 @@ close the loop (alerts, commands), then operability and docs.
   Dashboard also gets a "Últimas medidas" card per site. No new
   endpoints.
 
-- [ ] **0021 floorplan-live-overlay** — *(Phase 2)*
+- [x] **0021 floorplan-live-overlay** — *(Phase 2, done 2026-05-05)*
   On `/sites/[siteArea]`, fetch each placed device's last value and
   state and color-code the marker (active / maintenance / inactive +
   numeric badge for the primary `controlledProperty`). 30 s polling,

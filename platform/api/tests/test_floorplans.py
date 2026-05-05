@@ -248,6 +248,43 @@ def test_placement_bad_device_id_404(tokens):
     assert r.status_code == 404
 
 
+def test_placements_include_state_and_primary_property(api, tokens, created_ids):
+    """Ticket 0021: list_placements exposes deviceState + primary controlledProperty."""
+    site = f"plan-{uuid4().hex[:8]}"
+
+    # Device A: explicit deviceState + controlledProperty
+    uid_a = str(uuid4())
+    r = api.post(
+        f"{PREFIX}/devices",
+        json={
+            "id": uid_a,
+            "category": "sensor",
+            "supportedProtocol": "http",
+            "name": f"plan-{uid_a[:8]}",
+            "location": {"latitude": 36.83, "longitude": -2.40, "site_area": site},
+            "controlledProperty": ["temperature", "humidity"],
+            "deviceState": "active",
+        },
+    )
+    assert r.status_code == 201, r.text
+    created_ids.append(f"urn:ngsi-ld:Device:{uid_a}")
+
+    # Device B: neither field set
+    uid_b = _seed_device(api, created_ids, site)
+
+    with _client(tokens["viewer"]) as c:
+        r = c.get(f"{PREFIX}/sites/{site}/placements")
+    assert r.status_code == 200
+    by_id = {row["device_id"]: row for row in r.json()}
+    a_full = next(k for k in by_id if k.endswith(uid_a))
+    b_full = next(k for k in by_id if k.endswith(uid_b))
+
+    assert by_id[a_full]["device_state"] == "active"
+    assert by_id[a_full]["primary_property"] == "temperature"
+    assert by_id[b_full]["device_state"] is None
+    assert by_id[b_full]["primary_property"] is None
+
+
 # ---------- RBAC matrix ----------
 
 

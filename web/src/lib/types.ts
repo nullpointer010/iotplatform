@@ -157,4 +157,6 @@ export interface Placement {
   name: string | null;
   x_pct: number | null;
   y_pct: number | null;
+  device_state?: string | null;
+  primary_property?: string | null;
 }

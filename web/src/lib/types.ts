@@ -75,9 +75,15 @@ export interface TelemetryEntry {
   unitCode?: string | null;
 }
 
+export type AggrMethod = "none" | "avg";
+export type AggrPeriod = "second" | "minute" | "hour" | "day";
+
 export interface TelemetryResponse {
   deviceId: string;
   controlledProperty: string;
+  aggrMethod?: AggrMethod;
+  aggrPeriod?: AggrPeriod | null;
+  total?: number | null;
   entries: TelemetryEntry[];
 }
 

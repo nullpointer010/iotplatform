@@ -27,13 +27,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TimeSeriesChart, type TimeSeriesRange } from "@/components/charts/time-series-chart";
 import { api } from "@/lib/api";
 import { paginate, PAGE_SIZE } from "@/lib/paginate";
+import { pickAggregation } from "@/lib/telemetry-bucket";
 import { cn } from "@/lib/utils";
-import type { Device } from "@/lib/types";
+import type { Device, TelemetryEntry } from "@/lib/types";
+
+const EXPORT_CAP = 100_000;
 
 const RANGES: { key: Exclude<TimeSeriesRange, "custom">; ms: number }[] = [
+  { key: "1h", ms: 3600 * 1000 },
   { key: "24h", ms: 24 * 3600 * 1000 },
   { key: "7d", ms: 7 * 24 * 3600 * 1000 },
-  { key: "30d", ms: 30 * 24 * 3600 * 1000 },
 ];
 
 function isoMs(ms: number): string {
@@ -56,9 +59,7 @@ function rangeWindow(
   return { fromDate: isoMs(now - ms), toDate: isoMs(now) };
 }
 
-export function buildCsv(
-  entries: { dateObserved: string; numValue: number; unitCode?: string | null }[],
-): string {
+export function buildCsv(entries: TelemetryEntry[]): string {
   const rows = ["dateObserved,localTime,numValue,unitCode"];
   for (const e of entries) {
     const local = format(new Date(e.dateObserved), "yyyy-MM-dd HH:mm:ss");
@@ -90,12 +91,12 @@ function rangeLabel(
   r: TimeSeriesRange,
 ): string {
   switch (r) {
+    case "1h":
+      return t("telemetry.range.1h");
     case "24h":
       return t("telemetry.range.24h");
     case "7d":
       return t("telemetry.range.7d");
-    case "30d":
-      return t("telemetry.range.30d");
     case "custom":
       return t("telemetry.range.custom");
   }
@@ -130,9 +131,46 @@ export function TelemetryTab({
     () => rangeWindow(range, customFrom, customTo),
     [range, customFrom, customTo],
   );
+  const agg = React.useMemo(
+    () => pickAggregation(range, window.fromDate, window.toDate),
+    [range, window.fromDate, window.toDate],
+  );
+  const bucketed = agg.aggrMethod === "avg";
 
-  const tele = useQuery({
-    queryKey: ["telemetry", deviceId, cp, range, window.fromDate, window.toDate],
+  // Chart series — bucketed avg for non-`1h` ranges; `1h` reuses
+  // the raw query below to avoid a duplicate request.
+  const chartQ = useQuery({
+    queryKey: [
+      "telemetry-chart",
+      deviceId,
+      cp,
+      range,
+      window.fromDate,
+      window.toDate,
+      agg.aggrPeriod,
+    ],
+    queryFn: () =>
+      api.getTelemetry(deviceId, {
+        controlledProperty: cp,
+        fromDate: window.fromDate,
+        toDate: window.toDate,
+        aggrMethod: "avg" as const,
+        aggrPeriod: agg.aggrPeriod,
+      }),
+    enabled: cp.length > 0 && bucketed,
+  });
+
+  // Raw samples — always fetched. Powers the table and CSV export
+  // and (for `1h`) the chart as well.
+  const rawQ = useQuery({
+    queryKey: [
+      "telemetry-raw",
+      deviceId,
+      cp,
+      range,
+      window.fromDate,
+      window.toDate,
+    ],
     queryFn: () =>
       api.getTelemetry(deviceId, {
         controlledProperty: cp,
@@ -143,19 +181,32 @@ export function TelemetryTab({
     enabled: cp.length > 0,
   });
 
-  const entries = tele.data?.entries ?? [];
-  const points = entries
-    .map((e) => ({ t: new Date(e.dateObserved).getTime(), v: e.numValue }))
+  const rawEntries = rawQ.data?.entries ?? [];
+  const total = rawQ.data?.total ?? null;
+  const exportTooMany = total !== null && total > EXPORT_CAP;
+
+  const chartEntries = bucketed ? chartQ.data?.entries ?? [] : rawEntries;
+  const points = chartEntries
+    .map((e) => ({
+      t: new Date(e.dateObserved).getTime(),
+      v: e.numValue,
+    }))
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v))
     .sort((a, b) => a.t - b.t);
-  const unit = entries[0]?.unitCode ?? null;
+  const unit = rawEntries.find((e) => e.unitCode)?.unitCode ?? null;
+
+  const isLoading = bucketed
+    ? chartQ.isLoading || rawQ.isLoading
+    : rawQ.isLoading;
+  const queryError = (chartQ.error ?? rawQ.error) as Error | null;
+  const hasError = bucketed ? chartQ.isError || rawQ.isError : rawQ.isError;
 
   const onExport = () => {
-    if (!entries.length) return;
+    if (!rawEntries.length) return;
     const from = window.fromDate ?? "all";
     const to = window.toDate ?? "now";
     const name = `${safeFilenamePart(deviceId)}_${safeFilenamePart(cp)}_${from}_${to}.csv`;
-    downloadCsv(name, buildCsv(entries));
+    downloadCsv(name, buildCsv(rawEntries));
   };
 
   return (
@@ -196,7 +247,7 @@ export function TelemetryTab({
               )}
             </div>
             <div className="md:col-span-2 flex flex-wrap items-end gap-2">
-              {(["24h", "7d", "30d", "custom"] as TimeSeriesRange[]).map((r) => (
+              {(["1h", "24h", "7d", "custom"] as TimeSeriesRange[]).map((r) => (
                 <Button
                   key={r}
                   type="button"
@@ -213,13 +264,26 @@ export function TelemetryTab({
                   variant="outline"
                   size="sm"
                   onClick={onExport}
-                  disabled={!entries.length}
+                  disabled={!rawEntries.length || exportTooMany}
+                  title={
+                    exportTooMany
+                      ? t("telemetry.export.tooMany.body")
+                      : undefined
+                  }
                 >
                   {t("telemetry.exportCsv")}
                 </Button>
               </div>
             </div>
           </div>
+          {exportTooMany && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {t("telemetry.export.tooMany.title")}
+              </span>{" "}
+              {t("telemetry.export.tooMany.body")}
+            </p>
+          )}
           {range === "custom" && (
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -250,11 +314,11 @@ export function TelemetryTab({
           title={t("telemetry.emptyTitle")}
           description={t("telemetry.emptyHint")}
         />
-      ) : tele.isError ? (
+      ) : hasError ? (
         <div className="rounded-lg border bg-card p-6 text-center text-destructive">
-          {(tele.error as Error).message}
+          {queryError?.message ?? "Error"}
         </div>
-      ) : tele.isLoading ? (
+      ) : isLoading ? (
         <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : points.length === 0 ? (
         <EmptyState
@@ -269,13 +333,13 @@ export function TelemetryTab({
         </Card>
       )}
 
-      {entries.length > 0 && (
+      {rawEntries.length > 0 && (
         <details className="rounded-lg border bg-card">
           <summary className="cursor-pointer px-4 py-2 text-sm font-medium">
             {t("telemetry.rawTable")}
           </summary>
           {(() => {
-            const sorted = [...entries].sort((a, b) =>
+            const sorted = [...rawEntries].sort((a, b) =>
               b.dateObserved.localeCompare(a.dateObserved),
             );
             const page = paginate(sorted, tablePage, PAGE_SIZE);
@@ -284,9 +348,9 @@ export function TelemetryTab({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Unit</TableHead>
+                      <TableHead>{t("telemetry.col.ts")}</TableHead>
+                      <TableHead>{t("telemetry.col.value")}</TableHead>
+                      <TableHead>{t("telemetry.col.unit")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -108,6 +108,8 @@ export const api = {
       toDate?: string;
       lastN?: number;
       limit?: number;
+      aggrMethod?: "avg";
+      aggrPeriod?: "second" | "minute" | "hour" | "day";
     },
   ) => {
     const q = new URLSearchParams({
@@ -117,6 +119,8 @@ export const api = {
     if (params.toDate) q.set("toDate", params.toDate);
     if (params.lastN) q.set("lastN", String(params.lastN));
     if (params.limit) q.set("limit", String(params.limit));
+    if (params.aggrMethod) q.set("aggrMethod", params.aggrMethod);
+    if (params.aggrPeriod) q.set("aggrPeriod", params.aggrPeriod);
     return request<TelemetryResponse>(
       `/devices/${encodeURIComponent(id)}/telemetry?${q.toString()}`,
     );

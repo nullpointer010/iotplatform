@@ -12,3 +12,10 @@ pattern. Keep it short — link to the ticket where it was discovered.
 - Zod refinements that need an i18n parameter encode the parameter into the message as `key:value` (e.g. `orionForbidden:(`). The form component splits the prefix and feeds the rest to `t(key, { ... })`. Keeps Zod sync and pure. (ticket 0011)
 - Field labels in forms render through `<FieldLabel htmlFor label tooltip? required? />` (`web/src/components/forms/field-label.tsx`) — Radix tooltip + lucide `Info` trigger. Mirrors crop-edc's `FormLabelContent`. (ticket 0011)
 - next-intl is wired without `[locale]` route segments: `web/src/i18n/index.ts` reads the `NEXT_LOCALE` cookie via `next/headers`, layout passes locale + messages into `<NextIntlClientProvider>`. Locale switch = cookie write + `router.refresh()`. (ticket 0011)
+- For dense time-series UIs against QuantumLeap, prefer **two
+  parallel queries** over fan-out + envelope: one bucketed `avg`
+  call drives the chart (single QL call), and one raw `lastN=1000`
+  call drives the table + CSV (real samples, never aggregated).
+  For very short ranges (`1h`) the chart can reuse the raw query
+  directly. Keeps charts fast and keeps exported data honest.
+  (ticket 0021c)

@@ -8,7 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.auth import require_roles
 from app.deps import OrionDep, QuantumLeapDep
 from app.schemas import DeviceIn, to_urn
-from app.schemas_telemetry import StateResponse, TelemetryEntry, TelemetryResponse
+from app.schemas_telemetry import (
+    AggrMethod,
+    AggrPeriod,
+    StateResponse,
+    TelemetryEntry,
+    TelemetryResponse,
+)
 
 router = APIRouter(prefix="/devices", tags=["telemetry"])
 
@@ -59,11 +65,18 @@ async def get_telemetry(
     lastN: Annotated[int | None, Query(ge=1, le=1000)] = None,
     limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
+    aggrMethod: AggrMethod = "none",
+    aggrPeriod: AggrPeriod | None = None,
 ) -> TelemetryResponse:
     if fromDate and toDate and fromDate > toDate:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="fromDate must be <= toDate",
+        )
+    if aggrMethod != "none" and aggrPeriod is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="aggrPeriod is required when aggrMethod is set",
         )
 
     device_urn = _normalise_id_or_404(device_id)
@@ -74,28 +87,58 @@ async def get_telemetry(
         )
 
     measurement_urn = _measurement_urn(device_urn, controlledProperty)
-    # When the caller asks for `lastN`, omit `limit` so QuantumLeap
-    # uses `lastN` alone and returns the last N entries; passing both
-    # produces inconsistent ordering. The route's default `limit=100`
-    # was previously forwarded alongside `lastN=1000`, capping the
-    # response to 100. See ticket 0021a.
+    from_iso = _to_iso(fromDate)
+    to_iso = _to_iso(toDate)
+
+    if aggrMethod != "none":
+        # Bucketed mode: single QL call with the chosen avg period.
+        # `lastN`/`limit`/`offset` are ignored.
+        payload = await ql.query_entity(
+            measurement_urn,
+            type_="DeviceMeasurement",
+            attrs="numValue",
+            from_date=from_iso,
+            to_date=to_iso,
+            aggr_method=aggrMethod,
+            aggr_period=aggrPeriod,
+        )
+        entries: list[TelemetryEntry] = []
+        if payload is not None:
+            index = payload.get("index", []) or []
+            vals = _values(payload, "numValue")
+            for i, ts in enumerate(index):
+                v = vals[i] if i < len(vals) else None
+                if v is None:
+                    continue
+                entries.append(
+                    TelemetryEntry(dateObserved=ts, numValue=float(v))
+                )
+        return TelemetryResponse(
+            deviceId=device_urn,
+            controlledProperty=controlledProperty,
+            aggrMethod=aggrMethod,
+            aggrPeriod=aggrPeriod,
+            entries=entries,
+        )
+
+    # Raw mode: existing behaviour, plus best-effort total via
+    # QuantumLeap's options=count.
     payload = await ql.query_entity(
         measurement_urn,
         type_="DeviceMeasurement",
         attrs="numValue,unitCode",
-        from_date=_to_iso(fromDate),
-        to_date=_to_iso(toDate),
+        from_date=from_iso,
+        to_date=to_iso,
         last_n=lastN,
         limit=None if lastN is not None else limit,
         offset=offset,
     )
 
-    entries: list[TelemetryEntry] = []
+    entries = []
     if payload is not None:
         index: list[str] = payload.get("index", []) or []
-        attrs = {a["attrName"]: a.get("values", []) for a in payload.get("attributes", [])}
-        num_values = attrs.get("numValue", [])
-        unit_codes = attrs.get("unitCode", [])
+        num_values = _values(payload, "numValue")
+        unit_codes = _values(payload, "unitCode")
         for i, ts in enumerate(index):
             num = num_values[i] if i < len(num_values) else None
             if num is None:
@@ -109,11 +152,33 @@ async def get_telemetry(
                 )
             )
 
+    total: int | None = None
+    try:
+        total = await ql.count_entity(
+            measurement_urn,
+            type_="DeviceMeasurement",
+            attrs="numValue",
+            from_date=from_iso,
+            to_date=to_iso,
+        )
+    except Exception:
+        total = None
+
     return TelemetryResponse(
         deviceId=device_urn,
         controlledProperty=controlledProperty,
+        aggrMethod="none",
+        aggrPeriod=None,
+        total=total,
         entries=entries,
     )
+
+
+def _values(payload: dict, attr: str) -> list:
+    for a in payload.get("attributes", []) or []:
+        if a.get("attrName") == attr:
+            return a.get("values", []) or []
+    return []
 
 
 @router.get(

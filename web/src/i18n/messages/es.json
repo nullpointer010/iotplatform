@@ -192,15 +192,26 @@
     "emptyTitle": "Sin datos",
     "emptyHint": "Aún no se han recibido medidas para este dispositivo en el rango seleccionado.",
     "range": {
+      "1h": "1 h",
       "24h": "24 h",
       "7d": "7 d",
-      "30d": "30 d",
       "custom": "Personalizado"
     },
     "from": "Desde",
     "to": "Hasta",
     "exportCsv": "Exportar CSV",
     "rawTable": "Tabla en bruto",
+    "export": {
+      "tooMany": {
+        "title": "Demasiados datos para exportar.",
+        "body": "Más de 100 000 filas en el rango seleccionado. Si necesitas más, consulta al administrador."
+      }
+    },
+    "col": {
+      "ts": "Marca de tiempo",
+      "value": "Valor",
+      "unit": "Unidad"
+    },
     "table": {
       "prev": "Anterior",
       "next": "Siguiente",

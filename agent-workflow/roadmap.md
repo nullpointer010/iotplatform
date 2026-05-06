@@ -262,6 +262,25 @@ close the loop (alerts, commands), then operability and docs.
   locale. Fixed both, plus added 100/page client-side pagination
   for the raw-data table.
 
+- [x] **0021b datetime-keep-native-picker** — *(Phase 2 fix, done 2026-05-06)*
+  0021a accidentally replaced the native datetime input with a
+  custom widget that lost the calendar pop-up. Restored the
+  native `<input type="datetime-local">` and pinned `lang="es-ES"`
+  on every locale-sensitive picker.
+
+- [x] **0021c telemetry-buckets-and-export-cap** — *(Phase 2 fix, done 2026-05-06)*
+  Range buttons silently truncated to the latest ~1 000 raw rows
+  (300 k/day devices saw seconds, not days). Backend now accepts
+  `aggrMethod` (`none|avg`) + `aggrPeriod` and serves bucketed
+  averages from a single QuantumLeap call. Web ranges become
+  `1h | 24h | 7d | custom` (drop `30d`): chart shows a bucketed
+  avg line for `24h` (minute), `7d` (hour) and `custom` (auto by
+  span); `1h` shows the raw samples directly. Raw table and CSV
+  always consume a separate raw query (`lastN=1000`) so exported
+  data is never aggregated. CSV export disabled with admin
+  message when raw count exceeds 100 000 (best-effort `total`
+  from QL `options=count`).
+
 - [ ] **0022 alerts-and-rules** — *(Phase 2)*
   Per-device threshold rules in Postgres. Rules, events, ack,
   closure, severity and audit **live in Postgres** (not in Orion);

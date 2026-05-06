@@ -200,3 +200,104 @@ def test_state_no_optional_fields_returns_empty_object(api, created_ids):
     r = api.get(f"{DEVICES}/{uid}/state")
     assert r.status_code == 200
     assert r.json() == {}
+
+
+# ---------- bucketed aggregation (ticket 0021c) ----------
+
+
+def test_aggrPeriod_required_when_aggrMethod_set(api, created_ids):
+    uid = _create_device(api, created_ids)
+    r = api.get(
+        f"{DEVICES}/{uid}/telemetry",
+        params={"controlledProperty": "temperature", "aggrMethod": "avg"},
+    )
+    assert r.status_code == 422
+
+
+def test_aggrMethod_invalid_value_returns_422(api, created_ids):
+    uid = _create_device(api, created_ids)
+    r = api.get(
+        f"{DEVICES}/{uid}/telemetry",
+        params={
+            "controlledProperty": "temperature",
+            "aggrMethod": "median",
+            "aggrPeriod": "minute",
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_avg_bucket_per_day(api, orion, ql, created_ids):
+    """5 samples → bucketed response carries the average.
+
+    QuantumLeap indexes by ``TimeInstant`` (notification-receipt time),
+    not ``dateObserved``. The 5 pushes happen within ~1 s of real time,
+    so we use ``aggrPeriod=day`` to guarantee a single deterministic
+    bucket regardless of when the test runs.
+    """
+    uid = _create_device(api, created_ids)
+    base = datetime(2026, 4, 30, 18, 0, 0, tzinfo=timezone.utc)
+    values = [10.0, 20.0, 30.0, 5.0, 15.0]
+    measurement_urn = None
+    for i, val in enumerate(values):
+        measurement_urn = push_measurement(
+            orion,
+            device_uuid=uid,
+            controlled_property="temperature",
+            num_value=val,
+            date_observed=_iso(base + timedelta(seconds=i)),
+            unit_code="CEL",
+        )
+    assert measurement_urn is not None
+    created_ids.append(measurement_urn)
+    wait_for_ql(ql, measurement_urn, expected_count=5)
+
+    r = api.get(
+        f"{DEVICES}/{uid}/telemetry",
+        params={
+            "controlledProperty": "temperature",
+            "aggrMethod": "avg",
+            "aggrPeriod": "day",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["aggrMethod"] == "avg"
+    assert body["aggrPeriod"] == "day"
+    entries = body["entries"]
+    assert len(entries) == 1, entries
+    bucket = entries[0]
+    assert bucket["numValue"] == pytest.approx(sum(values) / len(values))
+    # Bucketed entries carry only the average — no min/max envelope.
+    assert "minValue" not in bucket
+    assert "maxValue" not in bucket
+
+
+def test_raw_response_includes_total_count(api, orion, ql, created_ids):
+    uid = _create_device(api, created_ids)
+    base = datetime(2026, 4, 30, 19, 0, 0, tzinfo=timezone.utc)
+    measurement_urn = None
+    for i in range(4):
+        measurement_urn = push_measurement(
+            orion,
+            device_uuid=uid,
+            controlled_property="humidity",
+            num_value=40.0 + i,
+            date_observed=_iso(base + timedelta(seconds=i)),
+            unit_code="P1",
+        )
+    assert measurement_urn is not None
+    created_ids.append(measurement_urn)
+    wait_for_ql(ql, measurement_urn, expected_count=4)
+
+    r = api.get(
+        f"{DEVICES}/{uid}/telemetry",
+        params={"controlledProperty": "humidity"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["aggrMethod"] == "none"
+    # total is best-effort; when present must be >= entries returned.
+    if body.get("total") is not None:
+        assert body["total"] >= len(body["entries"])
+        assert body["total"] >= 4

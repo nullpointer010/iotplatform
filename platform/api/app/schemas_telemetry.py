@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+AggrMethod = Literal["none", "avg"]
+AggrPeriod = Literal["second", "minute", "hour", "day"]
 
 
 class TelemetryEntry(BaseModel):
@@ -18,6 +23,9 @@ class TelemetryResponse(BaseModel):
 
     deviceId: str
     controlledProperty: str
+    aggrMethod: AggrMethod = "none"
+    aggrPeriod: AggrPeriod | None = None
+    total: int | None = None
     entries: list[TelemetryEntry]
 
 

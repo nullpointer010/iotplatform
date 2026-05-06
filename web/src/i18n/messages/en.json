@@ -192,15 +192,26 @@
     "emptyTitle": "No data",
     "emptyHint": "No measurements have been received for this device in the selected range.",
     "range": {
+      "1h": "1 h",
       "24h": "24 h",
       "7d": "7 d",
-      "30d": "30 d",
       "custom": "Custom"
     },
     "from": "From",
     "to": "To",
     "exportCsv": "Export CSV",
     "rawTable": "Raw table",
+    "export": {
+      "tooMany": {
+        "title": "Too much data to export.",
+        "body": "More than 100 000 rows in the selected range. If you need a larger export, contact your administrator."
+      }
+    },
+    "col": {
+      "ts": "Timestamp",
+      "value": "Value",
+      "unit": "Unit"
+    },
     "table": {
       "prev": "Previous",
       "next": "Next",

@@ -16,7 +16,7 @@ export interface TimeSeriesPoint {
   v: number;
 }
 
-export type TimeSeriesRange = "24h" | "7d" | "30d" | "custom";
+export type TimeSeriesRange = "1h" | "24h" | "7d" | "custom";
 
 export function TimeSeriesChart({
   data,
@@ -31,11 +31,14 @@ export function TimeSeriesChart({
 }) {
   const xFmt = (t: number) => {
     const d = new Date(t);
-    if (range === "24h") return format(d, "HH:mm");
+    if (range === "1h" || range === "24h") return format(d, "HH:mm");
     return format(d, "dd MMM");
   };
   const tipFmt = (t: number) =>
-    format(new Date(t), range === "24h" ? "dd MMM HH:mm" : "dd MMM yyyy HH:mm");
+    format(
+      new Date(t),
+      range === "1h" || range === "24h" ? "dd MMM HH:mm" : "dd MMM yyyy HH:mm",
+    );
 
   return (
     <div style={{ width: "100%", height }}>
